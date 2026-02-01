@@ -106,29 +106,63 @@ pub fn calculate_costs(app: &App) -> CostBreakdown {
     breakdown
 }
 
+#[allow(dead_code)]
 pub fn calculate_today_cost(app: &App) -> f64 {
+    calculate_period_cost(app, 1)
+}
+
+/// Returns (cost, label with date) for the last day in stats
+pub fn calculate_last_day_cost(app: &App) -> (f64, String) {
+    let Some(stats) = &app.stats else {
+        return (0.0, "Last day:".to_string());
+    };
+
+    let Some(last_day) = stats.daily_model_tokens.last() else {
+        return (0.0, "Last day:".to_string());
+    };
+
+    // Format the date nicely (e.g., "Jan 31:")
+    let label = if let Ok(date) = chrono::NaiveDate::parse_from_str(&last_day.date, "%Y-%m-%d") {
+        format!("{}:", date.format("%b %d"))
+    } else {
+        format!("{}:", &last_day.date)
+    };
+
+    let cost = calculate_period_cost(app, 1);
+    (cost, label)
+}
+
+pub fn calculate_week_cost(app: &App) -> f64 {
+    calculate_period_cost(app, 7)
+}
+
+pub fn calculate_month_cost(app: &App) -> f64 {
+    calculate_period_cost(app, 30)
+}
+
+fn calculate_period_cost(app: &App, days: usize) -> f64 {
     let Some(stats) = &app.stats else {
         return 0.0;
     };
 
-    let Some(today) = stats.daily_model_tokens.last() else {
-        return 0.0;
-    };
-
     let mut total = 0.0;
-    for (model_name, tokens) in &today.tokens_by_model {
-        let pricing = get_pricing(model_name);
-        // Estimate based on output ratio (typically ~20-30% output)
-        let output_ratio = 0.25;
-        let cache_ratio = 0.60; // Most tokens are cache reads
+    let recent_days: Vec<_> = stats.daily_model_tokens.iter().rev().take(days).collect();
 
-        let input_tokens = (*tokens as f64) * (1.0 - output_ratio - cache_ratio) * 0.5;
-        let output_tokens = (*tokens as f64) * output_ratio;
-        let cache_tokens = (*tokens as f64) * cache_ratio;
+    for day in recent_days {
+        for (model_name, tokens) in &day.tokens_by_model {
+            let pricing = get_pricing(model_name);
+            // Estimate based on output ratio (typically ~20-30% output)
+            let output_ratio = 0.25;
+            let cache_ratio = 0.60; // Most tokens are cache reads
 
-        total += (input_tokens / 1_000_000.0) * pricing.input;
-        total += (output_tokens / 1_000_000.0) * pricing.output;
-        total += (cache_tokens / 1_000_000.0) * pricing.cache_read;
+            let input_tokens = (*tokens as f64) * (1.0 - output_ratio - cache_ratio) * 0.5;
+            let output_tokens = (*tokens as f64) * output_ratio;
+            let cache_tokens = (*tokens as f64) * cache_ratio;
+
+            total += (input_tokens / 1_000_000.0) * pricing.input;
+            total += (output_tokens / 1_000_000.0) * pricing.output;
+            total += (cache_tokens / 1_000_000.0) * pricing.cache_read;
+        }
     }
 
     total
@@ -142,55 +176,7 @@ pub fn render_costs_summary(frame: &mut Frame, area: Rect, app: &App, theme: &Th
     };
 
     let block = Block::default()
-        .title(" EQUIVALENT API COST ")
-        .title_style(theme.title_style())
-        .borders(Borders::ALL)
-        .border_style(border_style);
-
-    let inner = block.inner(area);
-    frame.render_widget(block, area);
-
-    let costs = calculate_costs(app);
-    let today_cost = calculate_today_cost(app);
-
-    let chunks = Layout::vertical([
-        Constraint::Length(1),
-        Constraint::Length(1),
-        Constraint::Length(1),
-        Constraint::Min(0),
-    ])
-    .split(inner);
-
-    // Note about API pricing
-    let line = Line::from(vec![
-        Span::styled("(if billed per-token)", theme.label_style()),
-    ]);
-    frame.render_widget(Paragraph::new(line), chunks[0]);
-
-    // All time cost
-    let line = Line::from(vec![
-        Span::styled("All Time:  ", theme.label_style()),
-        Span::styled(format_currency(costs.total()), theme.highlight_style()),
-    ]);
-    frame.render_widget(Paragraph::new(line), chunks[1]);
-
-    // Today's cost
-    let line = Line::from(vec![
-        Span::styled("Today:     ", theme.label_style()),
-        Span::styled(format_currency(today_cost), theme.value_style()),
-    ]);
-    frame.render_widget(Paragraph::new(line), chunks[2]);
-}
-
-pub fn render_cost_breakdown(frame: &mut Frame, area: Rect, app: &App, theme: &Theme, focused: bool) {
-    let border_style = if focused {
-        theme.border_focused_style()
-    } else {
-        theme.border_style()
-    };
-
-    let block = Block::default()
-        .title(" API COST BREAKDOWN ")
+        .title(" COST BREAKDOWN (all time) ")
         .title_style(theme.title_style())
         .borders(Borders::ALL)
         .border_style(border_style);
@@ -219,9 +205,62 @@ pub fn render_cost_breakdown(frame: &mut Frame, area: Rect, app: &App, theme: &T
     for (i, (label, value)) in items.iter().enumerate() {
         let line = Line::from(vec![
             Span::styled(format!("{:<14}", label), theme.label_style()),
-            Span::styled(format!("{:>14}", format_currency(*value)), theme.value_style()),
+            Span::styled(format!("{:>10}", format_currency(*value)), theme.value_style()),
         ]);
         frame.render_widget(Paragraph::new(line), chunks[i]);
+    }
+}
+
+pub fn render_cost_breakdown(frame: &mut Frame, area: Rect, app: &App, theme: &Theme, focused: bool) {
+    let border_style = if focused {
+        theme.border_focused_style()
+    } else {
+        theme.border_style()
+    };
+
+    let block = Block::default()
+        .title(" API COST BY PERIOD ")
+        .title_style(theme.title_style())
+        .borders(Borders::ALL)
+        .border_style(border_style);
+
+    let inner = block.inner(area);
+    frame.render_widget(block, area);
+
+    let (last_day_cost, last_day_label) = calculate_last_day_cost(app);
+    let week_cost = calculate_week_cost(app);
+    let month_cost = calculate_month_cost(app);
+    let all_time_cost = calculate_costs(app).total();
+
+    let chunks = Layout::vertical([
+        Constraint::Length(1),
+        Constraint::Length(1),
+        Constraint::Length(1),
+        Constraint::Length(1),
+        Constraint::Length(1),
+        Constraint::Min(0),
+    ])
+    .split(inner);
+
+    // Note about estimates
+    let line = Line::from(vec![
+        Span::styled("(estimated from daily tokens)", theme.label_style()),
+    ]);
+    frame.render_widget(Paragraph::new(line), chunks[0]);
+
+    let items = [
+        (last_day_label, last_day_cost, theme.highlight_style()),
+        ("Last 7 days:".to_string(), week_cost, theme.value_style()),
+        ("Last 30 days:".to_string(), month_cost, theme.value_style()),
+        ("All Time:".to_string(), all_time_cost, theme.value_style()),
+    ];
+
+    for (i, (label, value, style)) in items.iter().enumerate() {
+        let line = Line::from(vec![
+            Span::styled(format!("{:<14}", label), theme.label_style()),
+            Span::styled(format!("{:>14}", format_currency(*value)), *style),
+        ]);
+        frame.render_widget(Paragraph::new(line), chunks[i + 1]);
     }
 }
 

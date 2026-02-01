@@ -32,11 +32,12 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App, theme: &Theme, focused: 
         Constraint::Length(1),
         Constraint::Length(1),
         Constraint::Length(1),
+        Constraint::Length(1),
         Constraint::Min(0),
     ])
     .split(inner);
 
-    // Session stats
+    // Session stats (from stats-cache.json - historical)
     let total_sessions = app
         .stats
         .as_ref()
@@ -46,20 +47,6 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App, theme: &Theme, focused: 
         .stats
         .as_ref()
         .map(|s| s.total_messages)
-        .unwrap_or(0);
-
-    let today_messages = app
-        .stats
-        .as_ref()
-        .and_then(|s| s.daily_activity.last())
-        .map(|d| d.message_count)
-        .unwrap_or(0);
-
-    let today_sessions = app
-        .stats
-        .as_ref()
-        .and_then(|s| s.daily_activity.last())
-        .map(|d| d.session_count)
         .unwrap_or(0);
 
     // Total Sessions
@@ -76,26 +63,44 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App, theme: &Theme, focused: 
     ]);
     frame.render_widget(Paragraph::new(line), chunks[1]);
 
-    // Spacer
-    frame.render_widget(Paragraph::new(""), chunks[2]);
-
-    // Today header
-    let line = Line::from(vec![Span::styled("── Today ──", theme.label_style())]);
-    frame.render_widget(Paragraph::new(line), chunks[3]);
-
-    // Today's messages
+    // Stats last updated indicator
+    let updated_str = app.stats_last_updated.as_deref().unwrap_or("--");
     let line = Line::from(vec![
-        Span::styled("Messages:    ", theme.label_style()),
-        Span::styled(format_number(today_messages), theme.highlight_style()),
+        Span::styled("Updated:     ", theme.label_style()),
+        Span::styled(updated_str, theme.warning_style()),
+    ]);
+    frame.render_widget(Paragraph::new(line), chunks[2]);
+
+    // Spacer
+    frame.render_widget(Paragraph::new(""), chunks[3]);
+
+    // Today header - LIVE from history.jsonl
+    let line = Line::from(vec![
+        Span::styled("── Live ──", theme.success_style()),
     ]);
     frame.render_widget(Paragraph::new(line), chunks[4]);
 
-    // Today's sessions
+    // Today's messages (LIVE from history.jsonl)
     let line = Line::from(vec![
-        Span::styled("Sessions:    ", theme.label_style()),
-        Span::styled(format_number(today_sessions), theme.value_style()),
+        Span::styled("Today:       ", theme.label_style()),
+        Span::styled(format!("{} msgs", format_number(app.today_messages_live)), theme.highlight_style()),
     ]);
     frame.render_widget(Paragraph::new(line), chunks[5]);
+
+    // Last 5 hours messages (LIVE)
+    let line = Line::from(vec![
+        Span::styled("Last 5h:     ", theme.label_style()),
+        Span::styled(format!("{} msgs", format_number(app.recent_5h_messages)), theme.value_style()),
+    ]);
+    frame.render_widget(Paragraph::new(line), chunks[6]);
+
+    // Active sessions count
+    let active_sessions = app.sessions.iter().filter(|s| s.is_active).count();
+    let line = Line::from(vec![
+        Span::styled("Active:      ", theme.label_style()),
+        Span::styled(format!("{} sessions", active_sessions), theme.value_style()),
+    ]);
+    frame.render_widget(Paragraph::new(line), chunks[7]);
 }
 
 fn format_number(n: u64) -> String {

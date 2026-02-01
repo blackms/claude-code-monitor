@@ -52,6 +52,10 @@ pub struct App {
     pub is_live: bool,
     pub should_quit: bool,
     pub last_error: Option<String>,
+    // Live data from history.jsonl
+    pub today_messages_live: u64,
+    pub recent_5h_messages: u64,
+    pub stats_last_updated: Option<String>,
 }
 
 impl App {
@@ -67,11 +71,14 @@ impl App {
             is_live: true,
             should_quit: false,
             last_error: None,
+            today_messages_live: 0,
+            recent_5h_messages: 0,
+            stats_last_updated: None,
         }
     }
 
     pub fn load_data(&mut self) {
-        // Load stats
+        // Load stats and get file modification time
         match data::parse_stats_cache(&self.config.stats_file) {
             Ok(stats) => {
                 self.stats = Some(stats);
@@ -82,9 +89,20 @@ impl App {
             }
         }
 
+        // Get stats file modification time
+        if let Ok(metadata) = std::fs::metadata(&self.config.stats_file) {
+            if let Ok(modified) = metadata.modified() {
+                let datetime: chrono::DateTime<chrono::Local> = modified.into();
+                self.stats_last_updated = Some(datetime.format("%b %d %H:%M").to_string());
+            }
+        }
+
         // Load history
         match data::parse_history(&self.config.history_file) {
             Ok(entries) => {
+                // Count live messages
+                self.today_messages_live = data::count_today_messages(&entries);
+                self.recent_5h_messages = data::count_recent_messages(&entries, 5);
                 self.sessions = data::group_sessions(&entries, None);
             }
             Err(e) => {

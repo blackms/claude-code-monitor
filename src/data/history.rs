@@ -72,6 +72,30 @@ fn extract_project_name(path: &str) -> String {
         .to_string()
 }
 
+/// Count messages from today based on history entries
+pub fn count_today_messages(entries: &[HistoryEntry]) -> u64 {
+    let today = chrono::Local::now().date_naive();
+
+    entries
+        .iter()
+        .filter(|e| {
+            let dt = chrono::DateTime::from_timestamp_millis(e.timestamp as i64);
+            dt.map(|d| d.with_timezone(&chrono::Local).date_naive() == today)
+                .unwrap_or(false)
+        })
+        .count() as u64
+}
+
+/// Count messages from the last N hours
+pub fn count_recent_messages(entries: &[HistoryEntry], hours: u64) -> u64 {
+    let cutoff = chrono::Utc::now().timestamp_millis() as u64 - (hours * 60 * 60 * 1000);
+
+    entries
+        .iter()
+        .filter(|e| e.timestamp >= cutoff)
+        .count() as u64
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
