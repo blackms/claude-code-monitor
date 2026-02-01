@@ -32,6 +32,9 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App, theme: &Theme, focused: 
         Constraint::Length(1), // This Week vs Last header
         Constraint::Length(1), // Messages
         Constraint::Length(1), // Spacer
+        Constraint::Length(1), // This Month vs Last header
+        Constraint::Length(1), // Messages
+        Constraint::Length(1), // Spacer
         Constraint::Length(1), // 7-day trend label
         Constraint::Length(1), // Sparkline
         Constraint::Min(0),
@@ -90,15 +93,40 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App, theme: &Theme, focused: 
     ]);
     frame.render_widget(Paragraph::new(line), chunks[4]);
 
+    // This Month vs Last Month
+    let line = Line::from(vec![
+        Span::styled("── This Month vs Last ──", theme.label_style()),
+    ]);
+    frame.render_widget(Paragraph::new(line), chunks[6]);
+
+    // Month messages comparison
+    let month_trend_style = match trend_data.month.messages_trend {
+        Trend::Up => theme.trend_up_style(),
+        Trend::Down => theme.trend_down_style(),
+        _ => theme.trend_flat_style(),
+    };
+
+    let month_change_str = match trend_data.month.messages_change_pct {
+        Some(pct) => format!("{} ({:+.0}%)", trend_data.month.messages_trend.symbol(), pct),
+        None => trend_data.month.messages_trend.symbol().to_string(),
+    };
+
+    let line = Line::from(vec![
+        Span::styled("Messages   ", theme.label_style()),
+        Span::styled(format!("{:<6}", format_number(trend_data.month.current_messages)), theme.value_style()),
+        Span::styled(month_change_str, month_trend_style),
+    ]);
+    frame.render_widget(Paragraph::new(line), chunks[7]);
+
     // 7-day trend sparkline
     let line = Line::from(vec![
         Span::styled("7-day trend:", theme.label_style()),
     ]);
-    frame.render_widget(Paragraph::new(line), chunks[6]);
+    frame.render_widget(Paragraph::new(line), chunks[9]);
 
     let sparkline_str = render_sparkline(&trend_data.sparkline);
     let line = Line::from(vec![
         Span::styled(sparkline_str, theme.sparkline_style()),
     ]);
-    frame.render_widget(Paragraph::new(line), chunks[7]);
+    frame.render_widget(Paragraph::new(line), chunks[10]);
 }

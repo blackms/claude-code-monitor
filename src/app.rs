@@ -79,6 +79,10 @@ pub struct App {
 
 impl App {
     pub fn new(config: Config) -> Self {
+        // Try to load existing samples from disk
+        let usage_tracker = UsageTracker::load_from_file(&config.samples_file)
+            .unwrap_or_default();
+
         Self {
             config,
             stats: None,
@@ -93,7 +97,7 @@ impl App {
             today_messages_live: 0,
             recent_5h_messages: 0,
             stats_last_updated: None,
-            usage_tracker: UsageTracker::default(),
+            usage_tracker,
             trend_data: TrendData::default(),
             cache_efficiency: CacheEfficiency::default(),
             averages: Averages::default(),
@@ -163,6 +167,11 @@ impl App {
             Ok(mut quota) => {
                 // Add sample to usage tracker
                 self.usage_tracker.add_sample(quota.session_usage, quota.week_usage);
+
+                // Save samples periodically (every 30 samples = ~1 minute at 2s intervals)
+                if self.usage_tracker.sample_count() % 30 == 0 {
+                    let _ = self.usage_tracker.save_to_file(&self.config.samples_file);
+                }
 
                 // Calculate projections if we have enough data
                 if self.usage_tracker.has_enough_data() {

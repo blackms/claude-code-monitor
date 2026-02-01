@@ -1,8 +1,9 @@
 use std::collections::VecDeque;
 use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 
 /// Sample of quota utilization at a point in time
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct QuotaSample {
     pub timestamp: DateTime<Utc>,
     pub session_utilization: Option<f64>,
@@ -165,6 +166,30 @@ impl UsageTracker {
     /// Check if we have enough samples for reliable projections
     pub fn has_enough_data(&self) -> bool {
         self.samples.len() >= 10
+    }
+
+    /// Get a reference to all samples (for persistence)
+    pub fn get_samples(&self) -> &VecDeque<QuotaSample> {
+        &self.samples
+    }
+
+    /// Add a sample with a specific timestamp (for loading from persistence)
+    pub fn add_sample_with_timestamp(
+        &mut self,
+        timestamp: DateTime<Utc>,
+        session_util: Option<f64>,
+        week_util: Option<f64>,
+    ) {
+        let sample = QuotaSample {
+            timestamp,
+            session_utilization: session_util,
+            week_utilization: week_util,
+        };
+
+        if self.samples.len() >= self.max_samples {
+            self.samples.pop_front();
+        }
+        self.samples.push_back(sample);
     }
 }
 

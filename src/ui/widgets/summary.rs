@@ -6,8 +6,19 @@ use ratatui::{
 };
 
 use crate::app::App;
-use crate::data::{format_number, format_duration_ms, format_first_session_date, Trend};
+use crate::data::{format_number, format_first_session_date, Trend};
 use crate::ui::theme::Theme;
+
+/// Format tokens in short form (e.g., 12.5K)
+fn format_tokens_short(tokens: f64) -> String {
+    if tokens >= 1_000_000.0 {
+        format!("{:.1}M", tokens / 1_000_000.0)
+    } else if tokens >= 1_000.0 {
+        format!("{:.1}K", tokens / 1_000.0)
+    } else {
+        format!("{:.0}", tokens)
+    }
+}
 
 pub fn render(frame: &mut Frame, area: Rect, app: &App, theme: &Theme, focused: bool) {
     let border_style = if focused {
@@ -31,9 +42,9 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App, theme: &Theme, focused: 
         Constraint::Length(1), // Since date
         Constraint::Length(1), // Web Searches
         Constraint::Length(1), // Spacer
-        Constraint::Length(1), // Longest Session header
-        Constraint::Length(1), // Duration
-        Constraint::Length(1), // Messages count
+        Constraint::Length(1), // Averages header
+        Constraint::Length(1), // Avg msgs/session
+        Constraint::Length(1), // Avg tokens/msg
         Constraint::Length(1), // Spacer
         Constraint::Length(1), // Live header
         Constraint::Length(1), // Today with trend
@@ -89,34 +100,35 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App, theme: &Theme, focused: 
     ]);
     frame.render_widget(Paragraph::new(line), chunks[3]);
 
-    // Longest Session header
+    // Averages header
     let line = Line::from(vec![
-        Span::styled("── Longest Session ──", theme.label_style()),
+        Span::styled("── Averages ──", theme.label_style()),
     ]);
     frame.render_widget(Paragraph::new(line), chunks[5]);
 
-    // Longest session details
-    if let Some(ref stats) = app.stats {
-        if let Some(ref longest) = stats.longest_session {
-            let duration = format_duration_ms(longest.duration);
-            let line = Line::from(vec![
-                Span::styled("Duration:    ", theme.label_style()),
-                Span::styled(duration, theme.highlight_style()),
-            ]);
-            frame.render_widget(Paragraph::new(line), chunks[6]);
+    // Avg msgs/session
+    let avg_msgs = if app.averages.messages_per_session > 0.0 {
+        format!("{:.1}", app.averages.messages_per_session)
+    } else {
+        "--".to_string()
+    };
+    let line = Line::from(vec![
+        Span::styled("Msgs/session:", theme.label_style()),
+        Span::styled(format!(" {}", avg_msgs), theme.value_style()),
+    ]);
+    frame.render_widget(Paragraph::new(line), chunks[6]);
 
-            let line = Line::from(vec![
-                Span::styled("Messages:    ", theme.label_style()),
-                Span::styled(format_number(longest.message_count), theme.value_style()),
-            ]);
-            frame.render_widget(Paragraph::new(line), chunks[7]);
-        } else {
-            let line = Line::from(vec![
-                Span::styled("No data", theme.label_style()),
-            ]);
-            frame.render_widget(Paragraph::new(line), chunks[6]);
-        }
-    }
+    // Avg tokens/msg
+    let avg_tokens = if app.averages.tokens_per_message > 0.0 {
+        format_tokens_short(app.averages.tokens_per_message)
+    } else {
+        "--".to_string()
+    };
+    let line = Line::from(vec![
+        Span::styled("Tokens/msg:  ", theme.label_style()),
+        Span::styled(format!(" {}", avg_tokens), theme.value_style()),
+    ]);
+    frame.render_widget(Paragraph::new(line), chunks[7]);
 
     // Live header
     let line = Line::from(vec![

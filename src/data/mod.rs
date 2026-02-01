@@ -5,6 +5,7 @@ pub mod quota;
 pub mod usage_tracker;
 pub mod trends;
 pub mod calculations;
+pub mod persistence;
 
 pub use models::*;
 pub use stats::parse_stats_cache;

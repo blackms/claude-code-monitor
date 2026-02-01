@@ -6,6 +6,7 @@ pub struct Config {
     pub claude_dir: PathBuf,
     pub stats_file: PathBuf,
     pub history_file: PathBuf,
+    pub samples_file: PathBuf,
     pub refresh_rate: Duration,
 }
 
@@ -17,6 +18,7 @@ impl Config {
         Ok(Self {
             stats_file: claude_dir.join("stats-cache.json"),
             history_file: claude_dir.join("history.jsonl"),
+            samples_file: claude_dir.join("usage-samples.json"),
             claude_dir,
             refresh_rate: Duration::from_millis(100),
         })
