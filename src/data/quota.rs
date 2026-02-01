@@ -57,6 +57,18 @@ pub struct QuotaInfo {
     pub sonnet_resets_at: Option<String>,
     pub subscription_type: Option<String>,
     pub last_error: Option<String>,
+    // Projection fields (calculated by UsageTracker)
+    pub session_rate_per_hour: Option<f64>,
+    pub week_rate_per_hour: Option<f64>,
+    pub session_hours_to_depletion: Option<f64>,
+    pub week_hours_to_depletion: Option<f64>,
+    pub session_is_safe: Option<bool>,
+    pub week_is_safe: Option<bool>,
+    // Extra usage (pay-as-you-go overage)
+    pub extra_usage_enabled: bool,
+    pub extra_usage_monthly_limit: Option<f64>,
+    pub extra_usage_used: Option<f64>,
+    pub extra_usage_utilization: Option<f64>,
 }
 
 impl QuotaInfo {
@@ -123,6 +135,15 @@ pub fn fetch_quota() -> Result<QuotaInfo> {
     if let Some(sonnet) = usage.seven_day_sonnet {
         quota.sonnet_usage = Some(sonnet.utilization);
         quota.sonnet_resets_at = Some(sonnet.resets_at);
+    }
+
+    // Extra usage (pay-as-you-go)
+    // API returns values in cents, convert to dollars
+    if let Some(extra) = usage.extra_usage {
+        quota.extra_usage_enabled = extra.is_enabled;
+        quota.extra_usage_monthly_limit = extra.monthly_limit.map(|v| v / 100.0);
+        quota.extra_usage_used = extra.used_credits.map(|v| v / 100.0);
+        quota.extra_usage_utilization = extra.utilization;
     }
 
     Ok(quota)

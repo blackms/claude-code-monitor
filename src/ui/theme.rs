@@ -71,6 +71,45 @@ impl Theme {
     }
 
     #[allow(dead_code)]
+    pub fn error_style(&self) -> Style {
+        Style::default().fg(self.error)
+    }
+
+    /// Style for upward trends (positive change)
+    pub fn trend_up_style(&self) -> Style {
+        Style::default().fg(self.success)
+    }
+
+    /// Style for downward trends (negative change)
+    pub fn trend_down_style(&self) -> Style {
+        Style::default().fg(self.error)
+    }
+
+    /// Style for flat/no change trends
+    pub fn trend_flat_style(&self) -> Style {
+        Style::default().fg(self.text_muted)
+    }
+
+    /// Style for safe/OK status indicators
+    pub fn safe_style(&self) -> Style {
+        Style::default()
+            .fg(self.success)
+            .add_modifier(Modifier::BOLD)
+    }
+
+    /// Style for warning/danger status indicators
+    pub fn danger_style(&self) -> Style {
+        Style::default()
+            .fg(self.error)
+            .add_modifier(Modifier::BOLD)
+    }
+
+    /// Style for sparkline bars
+    pub fn sparkline_style(&self) -> Style {
+        Style::default().fg(self.primary)
+    }
+
+    #[allow(dead_code)]
     pub fn bar_style(&self, index: usize) -> Style {
         let colors = [
             self.primary,

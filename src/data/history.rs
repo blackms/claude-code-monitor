@@ -96,6 +96,41 @@ pub fn count_recent_messages(entries: &[HistoryEntry], hours: u64) -> u64 {
         .count() as u64
 }
 
+/// Project statistics
+#[derive(Debug, Clone)]
+#[allow(dead_code)]
+pub struct ProjectStats {
+    pub name: String,
+    pub path: String,
+    pub message_count: u64,
+}
+
+/// Count messages per project and return top N
+pub fn count_projects(entries: &[HistoryEntry], top_n: usize) -> Vec<ProjectStats> {
+    let mut project_counts: HashMap<String, (String, u64)> = HashMap::new();
+
+    for entry in entries {
+        let project_name = extract_project_name(&entry.project);
+        project_counts
+            .entry(entry.project.clone())
+            .and_modify(|(_, count)| *count += 1)
+            .or_insert((project_name, 1));
+    }
+
+    let mut projects: Vec<ProjectStats> = project_counts
+        .into_iter()
+        .map(|(path, (name, count))| ProjectStats {
+            name,
+            path,
+            message_count: count,
+        })
+        .collect();
+
+    projects.sort_by(|a, b| b.message_count.cmp(&a.message_count));
+    projects.truncate(top_n);
+    projects
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

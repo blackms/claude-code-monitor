@@ -4,3 +4,5 @@ pub mod cost_display;
 pub mod activity_chart;
 pub mod hourly_chart;
 pub mod session_list;
+pub mod trend_display;
+pub mod statistics;
