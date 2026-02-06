@@ -35,14 +35,18 @@ struct ModelPricing {
 }
 
 fn get_pricing(model_name: &str) -> ModelPricing {
+    // Pricing as of 2025 (per million tokens)
+    // https://docs.anthropic.com/en/docs/about-claude/models
     if model_name.contains("opus") {
+        // Claude Opus 4.5: $5/$25 with prompt caching
         ModelPricing {
-            input: 15.0,
-            output: 75.0,
-            cache_read: 1.50,
-            cache_create: 18.75,
+            input: 5.0,
+            output: 25.0,
+            cache_read: 0.50,
+            cache_create: 6.25,
         }
     } else if model_name.contains("sonnet") {
+        // Claude Sonnet 4: $3/$15 with prompt caching
         ModelPricing {
             input: 3.0,
             output: 15.0,
@@ -50,11 +54,12 @@ fn get_pricing(model_name: &str) -> ModelPricing {
             cache_create: 3.75,
         }
     } else if model_name.contains("haiku") {
+        // Claude Haiku 3.5: $0.80/$4 with prompt caching
         ModelPricing {
-            input: 0.25,
-            output: 1.25,
-            cache_read: 0.025,
-            cache_create: 0.3125,
+            input: 0.80,
+            output: 4.0,
+            cache_read: 0.08,
+            cache_create: 1.0,
         }
     } else {
         // Default to sonnet pricing
@@ -140,10 +145,56 @@ pub fn calculate_month_cost(app: &App) -> f64 {
     calculate_period_cost(app, 30)
 }
 
+/// Token breakdown ratios for cost estimation
+/// daily_model_tokens contains only (input + output), not cache tokens.
+/// We calculate:
+/// - input_ratio: fraction of (input+output) that is input
+/// - cache_read_factor: ratio of cache_read to (input+output) for scaling
+/// - cache_create_factor: ratio of cache_create to (input+output) for scaling
+struct TokenRatios {
+    input_ratio: f64,        // input / (input + output)
+    cache_read_factor: f64,  // cache_read / (input + output)
+    cache_create_factor: f64, // cache_create / (input + output)
+}
+
+fn calculate_token_ratios(stats: &crate::data::StatsCache) -> TokenRatios {
+    let mut total_input = 0u64;
+    let mut total_output = 0u64;
+    let mut total_cache_read = 0u64;
+    let mut total_cache_create = 0u64;
+
+    for (_model_name, usage) in &stats.model_usage {
+        total_input += usage.input_tokens;
+        total_output += usage.output_tokens;
+        total_cache_read += usage.cache_read_input_tokens;
+        total_cache_create += usage.cache_creation_input_tokens;
+    }
+
+    let io_total = (total_input + total_output) as f64;
+    if io_total < 1.0 {
+        // Fallback to reasonable defaults if no data
+        return TokenRatios {
+            input_ratio: 0.73,       // typical input ratio
+            cache_read_factor: 50.0, // cache is typically much larger
+            cache_create_factor: 3.0,
+        };
+    }
+
+    TokenRatios {
+        input_ratio: total_input as f64 / io_total,
+        cache_read_factor: total_cache_read as f64 / io_total,
+        cache_create_factor: total_cache_create as f64 / io_total,
+    }
+}
+
 fn calculate_period_cost(app: &App, days: usize) -> f64 {
     let Some(stats) = &app.stats else {
         return 0.0;
     };
+
+    // daily_model_tokens contains (input + output) tokens only, NOT cache.
+    // We estimate cache usage proportionally based on all-time ratios.
+    let ratios = calculate_token_ratios(stats);
 
     let mut total = 0.0;
     let recent_days: Vec<_> = stats.daily_model_tokens.iter().rev().take(days).collect();
@@ -151,17 +202,21 @@ fn calculate_period_cost(app: &App, days: usize) -> f64 {
     for day in recent_days {
         for (model_name, tokens) in &day.tokens_by_model {
             let pricing = get_pricing(model_name);
-            // Estimate based on output ratio (typically ~20-30% output)
-            let output_ratio = 0.25;
-            let cache_ratio = 0.60; // Most tokens are cache reads
+            // tokens = input + output for this day
+            let io_tokens = *tokens as f64;
 
-            let input_tokens = (*tokens as f64) * (1.0 - output_ratio - cache_ratio) * 0.5;
-            let output_tokens = (*tokens as f64) * output_ratio;
-            let cache_tokens = (*tokens as f64) * cache_ratio;
+            // Split input+output based on all-time ratio
+            let input_tokens = io_tokens * ratios.input_ratio;
+            let output_tokens = io_tokens * (1.0 - ratios.input_ratio);
+
+            // Estimate cache usage proportionally
+            let cache_read_tokens = io_tokens * ratios.cache_read_factor;
+            let cache_create_tokens = io_tokens * ratios.cache_create_factor;
 
             total += (input_tokens / 1_000_000.0) * pricing.input;
             total += (output_tokens / 1_000_000.0) * pricing.output;
-            total += (cache_tokens / 1_000_000.0) * pricing.cache_read;
+            total += (cache_read_tokens / 1_000_000.0) * pricing.cache_read;
+            total += (cache_create_tokens / 1_000_000.0) * pricing.cache_create;
         }
     }
 
