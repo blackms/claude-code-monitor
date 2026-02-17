@@ -14,8 +14,9 @@ pub use quota::{fetch_quota, QuotaInfo};
 pub use usage_tracker::{UsageTracker, DepletionStatus, format_hours};
 pub use trends::{TrendData, Trend, render_sparkline};
 pub use calculations::{
+    ModelPricing,
     CacheEfficiency, Averages, WebSearchStats,
     calculate_monthly_projection,
     format_duration_ms, format_first_session_date,
-    format_number, format_currency,
+    format_number, format_currency, shorten_model_name,
 };

@@ -7,94 +7,8 @@ use ratatui::{
 };
 
 use crate::app::App;
-use crate::data::{QuotaInfo, format_hours};
+use crate::data::{ModelPricing, QuotaInfo, format_currency, format_hours};
 use crate::ui::theme::Theme;
-
-fn format_currency(value: f64) -> String {
-    let formatted = format!("{:.2}", value);
-    let parts: Vec<&str> = formatted.split('.').collect();
-    let integer_part = parts[0];
-    let decimal_part = parts.get(1).unwrap_or(&"00");
-
-    let mut result = String::new();
-    for (i, c) in integer_part.chars().rev().enumerate() {
-        if i > 0 && i % 3 == 0 {
-            result.push(',');
-        }
-        result.push(c);
-    }
-    format!("${}.{}", result.chars().rev().collect::<String>(), decimal_part)
-}
-
-// Model pricing per million tokens (USD) - API pricing
-struct ModelPricing {
-    input: f64,
-    output: f64,
-    cache_read: f64,
-    cache_create: f64,
-}
-
-fn get_pricing(model_name: &str) -> ModelPricing {
-    // Pricing as of 2026 (per million tokens)
-    // https://platform.claude.com/docs
-    if model_name.contains("opus-4-5") || model_name.contains("opus-4-6") {
-        // Claude Opus 4.5 / 4.6: $5/$25
-        ModelPricing {
-            input: 5.0,
-            output: 25.0,
-            cache_read: 0.50,
-            cache_create: 6.25,
-        }
-    } else if model_name.contains("opus") {
-        // Claude Opus 4 / 4.1: $15/$75
-        ModelPricing {
-            input: 15.0,
-            output: 75.0,
-            cache_read: 1.50,
-            cache_create: 18.75,
-        }
-    } else if model_name.contains("sonnet") {
-        // Claude Sonnet 4 / 4.5: $3/$15
-        ModelPricing {
-            input: 3.0,
-            output: 15.0,
-            cache_read: 0.30,
-            cache_create: 3.75,
-        }
-    } else if model_name.contains("haiku-4-5") {
-        // Claude Haiku 4.5: $1/$5
-        ModelPricing {
-            input: 1.0,
-            output: 5.0,
-            cache_read: 0.10,
-            cache_create: 1.25,
-        }
-    } else if model_name.contains("haiku-3-5") || model_name.contains("3-5-haiku") {
-        // Claude Haiku 3.5: $0.80/$4
-        ModelPricing {
-            input: 0.80,
-            output: 4.0,
-            cache_read: 0.08,
-            cache_create: 1.0,
-        }
-    } else if model_name.contains("haiku") {
-        // Claude Haiku 3: $0.25/$1.25
-        ModelPricing {
-            input: 0.25,
-            output: 1.25,
-            cache_read: 0.03,
-            cache_create: 0.30,
-        }
-    } else {
-        // Default to sonnet pricing
-        ModelPricing {
-            input: 3.0,
-            output: 15.0,
-            cache_read: 0.30,
-            cache_create: 3.75,
-        }
-    }
-}
 
 pub struct CostBreakdown {
     pub input: f64,
@@ -122,7 +36,7 @@ pub fn calculate_costs(app: &App) -> CostBreakdown {
     };
 
     for (model_name, usage) in &stats.model_usage {
-        let pricing = get_pricing(model_name);
+        let pricing = ModelPricing::for_model(model_name);
 
         breakdown.input += (usage.input_tokens as f64 / 1_000_000.0) * pricing.input;
         breakdown.output += (usage.output_tokens as f64 / 1_000_000.0) * pricing.output;
@@ -225,7 +139,7 @@ fn calculate_period_cost(app: &App, days: usize) -> f64 {
 
     for day in recent_days {
         for (model_name, tokens) in &day.tokens_by_model {
-            let pricing = get_pricing(model_name);
+            let pricing = ModelPricing::for_model(model_name);
             // tokens = input + output for this day
             let io_tokens = *tokens as f64;
 
