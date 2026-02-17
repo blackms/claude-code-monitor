@@ -13,7 +13,16 @@ pub struct ModelPricing {
 
 impl ModelPricing {
     pub fn for_model(model_name: &str) -> Self {
-        if model_name.contains("opus") {
+        if model_name.contains("opus-4-5") || model_name.contains("opus-4-6") {
+            // Claude Opus 4.5 / 4.6: $5/$25
+            Self {
+                input: 5.0,
+                output: 25.0,
+                cache_read: 0.50,
+                cache_create: 6.25,
+            }
+        } else if model_name.contains("opus") {
+            // Claude Opus 4 / 4.1: $15/$75
             Self {
                 input: 15.0,
                 output: 75.0,
@@ -21,18 +30,36 @@ impl ModelPricing {
                 cache_create: 18.75,
             }
         } else if model_name.contains("sonnet") {
+            // Claude Sonnet 4 / 4.5: $3/$15
             Self {
                 input: 3.0,
                 output: 15.0,
                 cache_read: 0.30,
                 cache_create: 3.75,
             }
+        } else if model_name.contains("haiku-4-5") {
+            // Claude Haiku 4.5: $1/$5
+            Self {
+                input: 1.0,
+                output: 5.0,
+                cache_read: 0.10,
+                cache_create: 1.25,
+            }
+        } else if model_name.contains("haiku-3-5") || model_name.contains("3-5-haiku") {
+            // Claude Haiku 3.5: $0.80/$4
+            Self {
+                input: 0.80,
+                output: 4.0,
+                cache_read: 0.08,
+                cache_create: 1.0,
+            }
         } else if model_name.contains("haiku") {
+            // Claude Haiku 3: $0.25/$1.25
             Self {
                 input: 0.25,
                 output: 1.25,
-                cache_read: 0.025,
-                cache_create: 0.3125,
+                cache_read: 0.03,
+                cache_create: 0.30,
             }
         } else {
             // Default to sonnet pricing
@@ -253,12 +280,22 @@ pub fn format_first_session_date(date_str: &str) -> String {
 
 /// Shorten model name for display
 pub fn shorten_model_name(name: &str) -> String {
-    if name.contains("opus-4-5") {
+    if name.contains("opus-4-6") {
+        "opus-4-6".to_string()
+    } else if name.contains("opus-4-5") {
         "opus-4-5".to_string()
+    } else if name.contains("opus-4-1") {
+        "opus-4-1".to_string()
+    } else if name.contains("opus-4") {
+        "opus-4".to_string()
     } else if name.contains("sonnet-4-5") {
         "sonnet-4-5".to_string()
     } else if name.contains("sonnet-4") {
         "sonnet-4".to_string()
+    } else if name.contains("haiku-4-5") {
+        "haiku-4-5".to_string()
+    } else if name.contains("haiku-3-5") || name.contains("3-5-haiku") {
+        "haiku-3-5".to_string()
     } else if name.contains("haiku") {
         "haiku".to_string()
     } else {
@@ -314,14 +351,29 @@ mod tests {
 
     #[test]
     fn test_model_pricing() {
-        let opus = ModelPricing::for_model("claude-opus-4-5");
-        assert_eq!(opus.input, 15.0);
+        let opus46 = ModelPricing::for_model("claude-opus-4-6-20260101");
+        assert_eq!(opus46.input, 5.0);
+        assert_eq!(opus46.output, 25.0);
+
+        let opus45 = ModelPricing::for_model("claude-opus-4-5-20251101");
+        assert_eq!(opus45.input, 5.0);
+        assert_eq!(opus45.output, 25.0);
+
+        let opus4 = ModelPricing::for_model("claude-opus-4-20250101");
+        assert_eq!(opus4.input, 15.0);
 
         let sonnet = ModelPricing::for_model("sonnet-4-5-20251202");
         assert_eq!(sonnet.input, 3.0);
 
-        let haiku = ModelPricing::for_model("haiku-3-5");
-        assert_eq!(haiku.input, 0.25);
+        let haiku45 = ModelPricing::for_model("claude-haiku-4-5-20251001");
+        assert_eq!(haiku45.input, 1.0);
+        assert_eq!(haiku45.output, 5.0);
+
+        let haiku35 = ModelPricing::for_model("claude-3-5-haiku-20241022");
+        assert_eq!(haiku35.input, 0.80);
+
+        let haiku3 = ModelPricing::for_model("claude-3-haiku-20240307");
+        assert_eq!(haiku3.input, 0.25);
     }
 
     #[test]
@@ -353,8 +405,11 @@ mod tests {
 
     #[test]
     fn test_cache_savings() {
-        let opus = ModelPricing::for_model("opus");
+        let opus = ModelPricing::for_model("opus-4-1");
         assert!((opus.cache_savings_per_million() - 13.5).abs() < 0.01);
+
+        let opus45 = ModelPricing::for_model("opus-4-5");
+        assert!((opus45.cache_savings_per_million() - 4.5).abs() < 0.01);
 
         let sonnet = ModelPricing::for_model("sonnet");
         assert!((sonnet.cache_savings_per_million() - 2.7).abs() < 0.01);

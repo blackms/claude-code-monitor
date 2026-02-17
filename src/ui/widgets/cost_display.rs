@@ -35,31 +35,55 @@ struct ModelPricing {
 }
 
 fn get_pricing(model_name: &str) -> ModelPricing {
-    // Pricing as of 2025 (per million tokens)
-    // https://docs.anthropic.com/en/docs/about-claude/models
-    if model_name.contains("opus") {
-        // Claude Opus 4.5: $5/$25 with prompt caching
+    // Pricing as of 2026 (per million tokens)
+    // https://platform.claude.com/docs
+    if model_name.contains("opus-4-5") || model_name.contains("opus-4-6") {
+        // Claude Opus 4.5 / 4.6: $5/$25
         ModelPricing {
             input: 5.0,
             output: 25.0,
             cache_read: 0.50,
             cache_create: 6.25,
         }
+    } else if model_name.contains("opus") {
+        // Claude Opus 4 / 4.1: $15/$75
+        ModelPricing {
+            input: 15.0,
+            output: 75.0,
+            cache_read: 1.50,
+            cache_create: 18.75,
+        }
     } else if model_name.contains("sonnet") {
-        // Claude Sonnet 4: $3/$15 with prompt caching
+        // Claude Sonnet 4 / 4.5: $3/$15
         ModelPricing {
             input: 3.0,
             output: 15.0,
             cache_read: 0.30,
             cache_create: 3.75,
         }
-    } else if model_name.contains("haiku") {
-        // Claude Haiku 3.5: $0.80/$4 with prompt caching
+    } else if model_name.contains("haiku-4-5") {
+        // Claude Haiku 4.5: $1/$5
+        ModelPricing {
+            input: 1.0,
+            output: 5.0,
+            cache_read: 0.10,
+            cache_create: 1.25,
+        }
+    } else if model_name.contains("haiku-3-5") || model_name.contains("3-5-haiku") {
+        // Claude Haiku 3.5: $0.80/$4
         ModelPricing {
             input: 0.80,
             output: 4.0,
             cache_read: 0.08,
             cache_create: 1.0,
+        }
+    } else if model_name.contains("haiku") {
+        // Claude Haiku 3: $0.25/$1.25
+        ModelPricing {
+            input: 0.25,
+            output: 1.25,
+            cache_read: 0.03,
+            cache_create: 0.30,
         }
     } else {
         // Default to sonnet pricing

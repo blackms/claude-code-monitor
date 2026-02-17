@@ -86,12 +86,22 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App, theme: &Theme, focused: 
 }
 
 fn shorten_model_name(name: &str) -> String {
-    if name.contains("opus-4-5") {
+    if name.contains("opus-4-6") {
+        "opus-4-6".to_string()
+    } else if name.contains("opus-4-5") {
         "opus-4-5".to_string()
+    } else if name.contains("opus-4-1") {
+        "opus-4-1".to_string()
+    } else if name.contains("opus-4") {
+        "opus-4".to_string()
     } else if name.contains("sonnet-4-5") {
         "sonnet-4-5".to_string()
     } else if name.contains("sonnet-4") {
         "sonnet-4".to_string()
+    } else if name.contains("haiku-4-5") {
+        "haiku-4-5".to_string()
+    } else if name.contains("haiku-3-5") || name.contains("3-5-haiku") {
+        "haiku-3-5".to_string()
     } else if name.contains("haiku") {
         "haiku".to_string()
     } else {
