@@ -72,6 +72,7 @@ pub struct App {
     pub averages: Averages,
     pub web_search_stats: WebSearchStats,
     pub top_projects: Vec<ProjectStats>,
+    pub total_cost: f64,
     pub monthly_projection: f64,
     // History entries for trend calculations
     history_entries: Vec<data::HistoryEntry>,
@@ -103,6 +104,7 @@ impl App {
             averages: Averages::default(),
             web_search_stats: WebSearchStats::default(),
             top_projects: Vec::new(),
+            total_cost: 0.0,
             monthly_projection: 0.0,
             history_entries: Vec::new(),
         }
@@ -116,6 +118,7 @@ impl App {
                 self.cache_efficiency = CacheEfficiency::calculate(&stats);
                 self.averages = Averages::calculate(&stats);
                 self.web_search_stats = WebSearchStats::calculate(&stats);
+                self.total_cost = data::calculate_total_cost(&stats);
                 self.monthly_projection = data::calculate_monthly_projection(&stats);
 
                 self.stats = Some(stats);

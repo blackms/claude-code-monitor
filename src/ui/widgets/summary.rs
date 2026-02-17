@@ -6,7 +6,7 @@ use ratatui::{
 };
 
 use crate::app::App;
-use crate::data::{format_number, format_first_session_date, Trend};
+use crate::data::{format_number, format_currency, format_first_session_date, Trend};
 use crate::ui::theme::Theme;
 
 /// Format tokens in short form (e.g., 12.5K)
@@ -41,6 +41,7 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App, theme: &Theme, focused: 
         Constraint::Length(1), // Messages
         Constraint::Length(1), // Since date
         Constraint::Length(1), // Web Searches
+        Constraint::Length(1), // Total Cost
         Constraint::Length(1), // Spacer
         Constraint::Length(1), // Averages header
         Constraint::Length(1), // Avg msgs/session
@@ -100,11 +101,18 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App, theme: &Theme, focused: 
     ]);
     frame.render_widget(Paragraph::new(line), chunks[3]);
 
+    // Total Cost
+    let line = Line::from(vec![
+        Span::styled("Total Cost:  ", theme.label_style()),
+        Span::styled(format_currency(app.total_cost), theme.warning_style()),
+    ]);
+    frame.render_widget(Paragraph::new(line), chunks[4]);
+
     // Averages header
     let line = Line::from(vec![
         Span::styled("── Averages ──", theme.label_style()),
     ]);
-    frame.render_widget(Paragraph::new(line), chunks[5]);
+    frame.render_widget(Paragraph::new(line), chunks[6]);
 
     // Avg msgs/session
     let avg_msgs = if app.averages.messages_per_session > 0.0 {
@@ -116,7 +124,7 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App, theme: &Theme, focused: 
         Span::styled("Msgs/session:", theme.label_style()),
         Span::styled(format!(" {}", avg_msgs), theme.value_style()),
     ]);
-    frame.render_widget(Paragraph::new(line), chunks[6]);
+    frame.render_widget(Paragraph::new(line), chunks[7]);
 
     // Avg tokens/msg
     let avg_tokens = if app.averages.tokens_per_message > 0.0 {
@@ -128,13 +136,13 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App, theme: &Theme, focused: 
         Span::styled("Tokens/msg:  ", theme.label_style()),
         Span::styled(format!(" {}", avg_tokens), theme.value_style()),
     ]);
-    frame.render_widget(Paragraph::new(line), chunks[7]);
+    frame.render_widget(Paragraph::new(line), chunks[8]);
 
     // Live header
     let line = Line::from(vec![
         Span::styled("── Live ──", theme.success_style()),
     ]);
-    frame.render_widget(Paragraph::new(line), chunks[9]);
+    frame.render_widget(Paragraph::new(line), chunks[10]);
 
     // Today's messages with trend indicator
     let trend_style = match app.trend_data.day.messages_trend {
@@ -153,14 +161,14 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App, theme: &Theme, focused: 
         Span::styled(format!("{}", format_number(app.today_messages_live)), theme.highlight_style()),
         Span::styled(trend_str, trend_style),
     ]);
-    frame.render_widget(Paragraph::new(line), chunks[10]);
+    frame.render_widget(Paragraph::new(line), chunks[11]);
 
     // Last 5 hours messages (LIVE)
     let line = Line::from(vec![
         Span::styled("Last 5h:     ", theme.label_style()),
         Span::styled(format!("{}", format_number(app.recent_5h_messages)), theme.value_style()),
     ]);
-    frame.render_widget(Paragraph::new(line), chunks[11]);
+    frame.render_widget(Paragraph::new(line), chunks[12]);
 
     // Active sessions count
     let active_sessions = app.sessions.iter().filter(|s| s.is_active).count();
@@ -168,5 +176,5 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App, theme: &Theme, focused: 
         Span::styled("Active:      ", theme.label_style()),
         Span::styled(format!("{} sessions", active_sessions), theme.value_style()),
     ]);
-    frame.render_widget(Paragraph::new(line), chunks[12]);
+    frame.render_widget(Paragraph::new(line), chunks[13]);
 }
