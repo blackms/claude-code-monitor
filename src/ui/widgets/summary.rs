@@ -6,7 +6,7 @@ use ratatui::{
 };
 
 use crate::app::App;
-use crate::data::{format_number, format_currency, format_first_session_date, Trend};
+use crate::data::{format_currency, format_first_session_date, format_number, Trend};
 use crate::ui::theme::Theme;
 
 /// Format tokens in short form (e.g., 12.5K)
@@ -56,16 +56,8 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App, theme: &Theme, focused: 
     .split(inner);
 
     // Session stats (from stats-cache.json - historical)
-    let total_sessions = app
-        .stats
-        .as_ref()
-        .map(|s| s.total_sessions)
-        .unwrap_or(0);
-    let total_messages = app
-        .stats
-        .as_ref()
-        .map(|s| s.total_messages)
-        .unwrap_or(0);
+    let total_sessions = app.stats.as_ref().map(|s| s.total_sessions).unwrap_or(0);
+    let total_messages = app.stats.as_ref().map(|s| s.total_messages).unwrap_or(0);
 
     // Total Sessions
     let line = Line::from(vec![
@@ -97,7 +89,10 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App, theme: &Theme, focused: 
     // Web Searches
     let line = Line::from(vec![
         Span::styled("Web Searches:", theme.label_style()),
-        Span::styled(format!(" {}", format_number(app.web_search_stats.total_searches)), theme.value_style()),
+        Span::styled(
+            format!(" {}", format_number(app.web_search_stats.total_searches)),
+            theme.value_style(),
+        ),
     ]);
     frame.render_widget(Paragraph::new(line), chunks[3]);
 
@@ -109,9 +104,7 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App, theme: &Theme, focused: 
     frame.render_widget(Paragraph::new(line), chunks[4]);
 
     // Averages header
-    let line = Line::from(vec![
-        Span::styled("── Averages ──", theme.label_style()),
-    ]);
+    let line = Line::from(vec![Span::styled("── Averages ──", theme.label_style())]);
     frame.render_widget(Paragraph::new(line), chunks[6]);
 
     // Avg msgs/session
@@ -139,9 +132,7 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App, theme: &Theme, focused: 
     frame.render_widget(Paragraph::new(line), chunks[8]);
 
     // Live header
-    let line = Line::from(vec![
-        Span::styled("── Live ──", theme.success_style()),
-    ]);
+    let line = Line::from(vec![Span::styled("── Live ──", theme.success_style())]);
     frame.render_widget(Paragraph::new(line), chunks[10]);
 
     // Today's messages with trend indicator
@@ -152,13 +143,20 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App, theme: &Theme, focused: 
     };
 
     let trend_str = match app.trend_data.day.messages_change_pct {
-        Some(pct) => format!(" {}({:+.0}%)", app.trend_data.day.messages_trend.symbol(), pct),
+        Some(pct) => format!(
+            " {}({:+.0}%)",
+            app.trend_data.day.messages_trend.symbol(),
+            pct
+        ),
         None => String::new(),
     };
 
     let line = Line::from(vec![
         Span::styled("Today:       ", theme.label_style()),
-        Span::styled(format!("{}", format_number(app.today_messages_live)), theme.highlight_style()),
+        Span::styled(
+            format!("{}", format_number(app.today_messages_live)),
+            theme.highlight_style(),
+        ),
         Span::styled(trend_str, trend_style),
     ]);
     frame.render_widget(Paragraph::new(line), chunks[11]);
@@ -166,7 +164,10 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App, theme: &Theme, focused: 
     // Last 5 hours messages (LIVE)
     let line = Line::from(vec![
         Span::styled("Last 5h:     ", theme.label_style()),
-        Span::styled(format!("{}", format_number(app.recent_5h_messages)), theme.value_style()),
+        Span::styled(
+            format!("{}", format_number(app.recent_5h_messages)),
+            theme.value_style(),
+        ),
     ]);
     frame.render_widget(Paragraph::new(line), chunks[12]);
 

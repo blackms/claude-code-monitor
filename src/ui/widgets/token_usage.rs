@@ -26,10 +26,7 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App, theme: &Theme, focused: 
     frame.render_widget(block, area);
 
     let Some(stats) = &app.stats else {
-        frame.render_widget(
-            Paragraph::new("No data available"),
-            inner,
-        );
+        frame.render_widget(Paragraph::new("No data available"), inner);
         return;
     };
 
@@ -50,10 +47,7 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App, theme: &Theme, focused: 
 
     let total_all: u64 = model_totals.iter().map(|(_, t)| *t).sum();
     if total_all == 0 {
-        frame.render_widget(
-            Paragraph::new("No token usage data"),
-            inner,
-        );
+        frame.render_widget(Paragraph::new("No token usage data"), inner);
         return;
     }
 

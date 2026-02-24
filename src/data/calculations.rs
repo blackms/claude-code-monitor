@@ -201,14 +201,6 @@ impl WebSearchStats {
     }
 }
 
-/// Top projects by message count
-#[derive(Debug, Clone)]
-#[allow(dead_code)]
-pub struct ProjectStats {
-    pub name: String,
-    pub message_count: u64,
-}
-
 /// Calculate monthly cost projection from recent daily average
 pub fn calculate_monthly_projection(stats: &StatsCache) -> f64 {
     // Get the last 7 days of activity
@@ -330,7 +322,11 @@ pub fn format_currency(value: f64) -> String {
         }
         result.push(c);
     }
-    format!("${}.{}", result.chars().rev().collect::<String>(), decimal_part)
+    format!(
+        "${}.{}",
+        result.chars().rev().collect::<String>(),
+        decimal_part
+    )
 }
 
 /// Format tokens in human readable form (K, M)

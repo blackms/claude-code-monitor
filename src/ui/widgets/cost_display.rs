@@ -7,7 +7,7 @@ use ratatui::{
 };
 
 use crate::app::App;
-use crate::data::{ModelPricing, QuotaInfo, format_currency, format_hours};
+use crate::data::{format_currency, format_hours, ModelPricing, QuotaInfo};
 use crate::ui::theme::Theme;
 
 pub struct CostBreakdown {
@@ -107,8 +107,8 @@ pub fn calculate_month_cost(app: &App) -> f64 {
 /// - cache_read_factor: ratio of cache_read to (input+output) for scaling
 /// - cache_create_factor: ratio of cache_create to (input+output) for scaling
 struct TokenRatios {
-    input_ratio: f64,        // input / (input + output)
-    cache_read_factor: f64,  // cache_read / (input + output)
+    input_ratio: f64,         // input / (input + output)
+    cache_read_factor: f64,   // cache_read / (input + output)
     cache_create_factor: f64, // cache_create / (input + output)
 }
 
@@ -178,7 +178,13 @@ fn calculate_period_cost(app: &App, days: usize) -> f64 {
     total
 }
 
-pub fn render_costs_summary(frame: &mut Frame, area: Rect, app: &App, theme: &Theme, focused: bool) {
+pub fn render_costs_summary(
+    frame: &mut Frame,
+    area: Rect,
+    app: &App,
+    theme: &Theme,
+    focused: bool,
+) {
     let border_style = if focused {
         theme.border_focused_style()
     } else {
@@ -215,13 +221,22 @@ pub fn render_costs_summary(frame: &mut Frame, area: Rect, app: &App, theme: &Th
     for (i, (label, value)) in items.iter().enumerate() {
         let line = Line::from(vec![
             Span::styled(format!("{:<14}", label), theme.label_style()),
-            Span::styled(format!("{:>10}", format_currency(*value)), theme.value_style()),
+            Span::styled(
+                format!("{:>10}", format_currency(*value)),
+                theme.value_style(),
+            ),
         ]);
         frame.render_widget(Paragraph::new(line), chunks[i]);
     }
 }
 
-pub fn render_cost_breakdown(frame: &mut Frame, area: Rect, app: &App, theme: &Theme, focused: bool) {
+pub fn render_cost_breakdown(
+    frame: &mut Frame,
+    area: Rect,
+    app: &App,
+    theme: &Theme,
+    focused: bool,
+) {
     let border_style = if focused {
         theme.border_focused_style()
     } else {
@@ -254,16 +269,21 @@ pub fn render_cost_breakdown(frame: &mut Frame, area: Rect, app: &App, theme: &T
     .split(inner);
 
     // Note about estimates
-    let line = Line::from(vec![
-        Span::styled("(estimated from daily tokens)", theme.label_style()),
-    ]);
+    let line = Line::from(vec![Span::styled(
+        "(estimated from daily tokens)",
+        theme.label_style(),
+    )]);
     frame.render_widget(Paragraph::new(line), chunks[0]);
 
     let items = [
         (today_label, today_cost, theme.highlight_style()),
         ("Last 7 days:".to_string(), week_cost, theme.value_style()),
         ("Last 30 days:".to_string(), month_cost, theme.value_style()),
-        ("Projected/mo:".to_string(), app.monthly_projection, theme.warning_style()),
+        (
+            "Projected/mo:".to_string(),
+            app.monthly_projection,
+            theme.warning_style(),
+        ),
         ("All Time:".to_string(), all_time_cost, theme.value_style()),
     ];
 
@@ -307,14 +327,16 @@ pub fn render_usage_quota(frame: &mut Frame, area: Rect, app: &App, theme: &Them
         .split(inner);
 
         if let Some(ref err) = app.quota.last_error {
-            let line = Line::from(vec![
-                Span::styled(format!("Error: {}", truncate_str(err, 30)), theme.warning_style()),
-            ]);
+            let line = Line::from(vec![Span::styled(
+                format!("Error: {}", truncate_str(err, 30)),
+                theme.warning_style(),
+            )]);
             frame.render_widget(Paragraph::new(line), chunks[0]);
         } else {
-            let line = Line::from(vec![
-                Span::styled("Loading quota data...", theme.label_style()),
-            ]);
+            let line = Line::from(vec![Span::styled(
+                "Loading quota data...",
+                theme.label_style(),
+            )]);
             frame.render_widget(Paragraph::new(line), chunks[0]);
         }
         return;
@@ -409,7 +431,10 @@ fn render_enhanced_quota_bar(
 
     let line = Line::from(vec![
         Span::styled(format!("{:<12}", label), theme.label_style()),
-        Span::styled(format!("{:>3.0}%", percentage), Style::default().fg(pct_color)),
+        Span::styled(
+            format!("{:>3.0}%", percentage),
+            Style::default().fg(pct_color),
+        ),
         Span::styled(rate_str, theme.label_style()),
     ]);
     frame.render_widget(Paragraph::new(line), chunks[0]);
@@ -438,9 +463,10 @@ fn render_enhanced_quota_bar(
             width: 13,
             height: 1,
         };
-        let line = Line::from(vec![
-            Span::styled(format!("↻{}", reset_str), theme.label_style()),
-        ]);
+        let line = Line::from(vec![Span::styled(
+            format!("↻{}", reset_str),
+            theme.label_style(),
+        )]);
         frame.render_widget(Paragraph::new(line), reset_area);
     }
 
@@ -458,9 +484,7 @@ fn render_enhanced_quota_bar(
             (time_str, theme.danger_style())
         };
 
-        let line = Line::from(vec![
-            Span::styled(status_text, status_style),
-        ]);
+        let line = Line::from(vec![Span::styled(status_text, status_style)]);
         frame.render_widget(Paragraph::new(line), chunks[2]);
     }
 }
@@ -487,7 +511,9 @@ fn render_extra_usage(frame: &mut Frame, area: Rect, app: &App, theme: &Theme) {
         Span::styled("Extra Usage: ", theme.label_style()),
         Span::styled(format_currency(used), used_style),
         Span::styled(
-            limit.map(|l| format!(" / {}", format_currency(l))).unwrap_or_default(),
+            limit
+                .map(|l| format!(" / {}", format_currency(l)))
+                .unwrap_or_default(),
             theme.label_style(),
         ),
     ]);
@@ -523,14 +549,16 @@ fn render_extra_usage(frame: &mut Frame, area: Rect, app: &App, theme: &Theme) {
             width: 7,
             height: 1,
         };
-        let line = Line::from(vec![
-            Span::styled(format!("{:.0}%", utilization), Style::default().fg(pct_color)),
-        ]);
+        let line = Line::from(vec![Span::styled(
+            format!("{:.0}%", utilization),
+            Style::default().fg(pct_color),
+        )]);
         frame.render_widget(Paragraph::new(line), pct_area);
     } else if used > 0.0 {
-        let line = Line::from(vec![
-            Span::styled("(no monthly limit set)", theme.label_style()),
-        ]);
+        let line = Line::from(vec![Span::styled(
+            "(no monthly limit set)",
+            theme.label_style(),
+        )]);
         frame.render_widget(Paragraph::new(line), chunks[1]);
     }
 }
@@ -544,11 +572,7 @@ fn render_quota_bar(
     resets_at: Option<&str>,
     theme: &Theme,
 ) {
-    let chunks = Layout::vertical([
-        Constraint::Length(1),
-        Constraint::Length(1),
-    ])
-    .split(area);
+    let chunks = Layout::vertical([Constraint::Length(1), Constraint::Length(1)]).split(area);
 
     // Label and percentage
     let pct_color = if percentage >= 90.0 {
@@ -561,7 +585,10 @@ fn render_quota_bar(
 
     let line = Line::from(vec![
         Span::styled(format!("{:<12}", label), theme.label_style()),
-        Span::styled(format!("{:>3.0}%", percentage), Style::default().fg(pct_color)),
+        Span::styled(
+            format!("{:>3.0}%", percentage),
+            Style::default().fg(pct_color),
+        ),
     ]);
     frame.render_widget(Paragraph::new(line), chunks[0]);
 
@@ -589,9 +616,10 @@ fn render_quota_bar(
             width: 11,
             height: 1,
         };
-        let line = Line::from(vec![
-            Span::styled(format!("↻{}", reset_str), theme.label_style()),
-        ]);
+        let line = Line::from(vec![Span::styled(
+            format!("↻{}", reset_str),
+            theme.label_style(),
+        )]);
         frame.render_widget(Paragraph::new(line), reset_area);
     }
 }

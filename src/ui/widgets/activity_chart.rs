@@ -73,9 +73,7 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App, theme: &Theme, focused: 
         })
         .collect();
 
-    let line = Line::from(vec![
-        Span::styled(sparkline, theme.highlight_style()),
-    ]);
+    let line = Line::from(vec![Span::styled(sparkline, theme.highlight_style())]);
     frame.render_widget(Paragraph::new(line), inner);
 
     // Show dates if there's room
@@ -86,9 +84,7 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App, theme: &Theme, focused: 
             .collect::<Vec<_>>()
             .join("");
 
-        let date_line = Line::from(vec![
-            Span::styled(date_labels, theme.label_style()),
-        ]);
+        let date_line = Line::from(vec![Span::styled(date_labels, theme.label_style())]);
         let date_area = Rect {
             x: inner.x,
             y: inner.y + 1,

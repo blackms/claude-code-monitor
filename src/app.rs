@@ -1,7 +1,7 @@
 use crate::config::Config;
 use crate::data::{
-    self, QuotaInfo, SessionInfo, StatsCache, UsageTracker, DepletionStatus,
-    TrendData, CacheEfficiency, Averages, WebSearchStats, ProjectStats,
+    self, Averages, CacheEfficiency, DepletionStatus, ProjectStats, QuotaInfo, SessionInfo,
+    StatsCache, TrendData, UsageTracker, WebSearchStats,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -18,35 +18,28 @@ pub enum Panel {
     Sessions,
 }
 
+const ALL_PANELS: &[Panel] = &[
+    Panel::Summary,
+    Panel::TokenUsage,
+    Panel::Trends,
+    Panel::CacheEfficiency,
+    Panel::CostsSummary,
+    Panel::UsageQuota,
+    Panel::CostBreakdown,
+    Panel::ActivityChart,
+    Panel::HourlyChart,
+    Panel::Sessions,
+];
+
 impl Panel {
     pub fn next(self) -> Self {
-        match self {
-            Panel::Summary => Panel::TokenUsage,
-            Panel::TokenUsage => Panel::Trends,
-            Panel::Trends => Panel::CacheEfficiency,
-            Panel::CacheEfficiency => Panel::CostsSummary,
-            Panel::CostsSummary => Panel::UsageQuota,
-            Panel::UsageQuota => Panel::CostBreakdown,
-            Panel::CostBreakdown => Panel::ActivityChart,
-            Panel::ActivityChart => Panel::HourlyChart,
-            Panel::HourlyChart => Panel::Sessions,
-            Panel::Sessions => Panel::Summary,
-        }
+        let idx = ALL_PANELS.iter().position(|&p| p == self).unwrap_or(0);
+        ALL_PANELS[(idx + 1) % ALL_PANELS.len()]
     }
 
     pub fn prev(self) -> Self {
-        match self {
-            Panel::Summary => Panel::Sessions,
-            Panel::TokenUsage => Panel::Summary,
-            Panel::Trends => Panel::TokenUsage,
-            Panel::CacheEfficiency => Panel::Trends,
-            Panel::CostsSummary => Panel::CacheEfficiency,
-            Panel::UsageQuota => Panel::CostsSummary,
-            Panel::CostBreakdown => Panel::UsageQuota,
-            Panel::ActivityChart => Panel::CostBreakdown,
-            Panel::HourlyChart => Panel::ActivityChart,
-            Panel::Sessions => Panel::HourlyChart,
-        }
+        let idx = ALL_PANELS.iter().position(|&p| p == self).unwrap_or(0);
+        ALL_PANELS[(idx + ALL_PANELS.len() - 1) % ALL_PANELS.len()]
     }
 }
 
@@ -61,6 +54,9 @@ pub struct App {
     pub is_live: bool,
     pub should_quit: bool,
     pub last_error: Option<String>,
+    pub export_message: Option<String>,
+    pub selected_session_id: Option<String>,
+    pub session_details_scroll: usize,
     // Live data from history.jsonl
     pub today_messages_live: u64,
     pub recent_5h_messages: u64,
@@ -81,8 +77,7 @@ pub struct App {
 impl App {
     pub fn new(config: Config) -> Self {
         // Try to load existing samples from disk
-        let usage_tracker = UsageTracker::load_from_file(&config.samples_file)
-            .unwrap_or_default();
+        let usage_tracker = UsageTracker::load_from_file(&config.samples_file).unwrap_or_default();
 
         Self {
             config,
@@ -95,6 +90,9 @@ impl App {
             is_live: true,
             should_quit: false,
             last_error: None,
+            export_message: None,
+            selected_session_id: None,
+            session_details_scroll: 0,
             today_messages_live: 0,
             recent_5h_messages: 0,
             stats_last_updated: None,
@@ -149,7 +147,9 @@ impl App {
                 self.top_projects = data::count_projects(&entries, 5);
 
                 // Calculate trends
-                let daily_activity = self.stats.as_ref()
+                let daily_activity = self
+                    .stats
+                    .as_ref()
                     .map(|s| s.daily_activity.as_slice())
                     .unwrap_or(&[]);
                 self.trend_data = TrendData::calculate(&entries, daily_activity);
@@ -165,62 +165,81 @@ impl App {
         }
     }
 
+    /// Initial synchronous quota load (used at startup)
     pub fn load_quota(&mut self) {
         match data::fetch_quota() {
-            Ok(mut quota) => {
-                // Add sample to usage tracker
-                self.usage_tracker.add_sample(quota.session_usage, quota.week_usage);
-
-                // Save samples periodically (every 30 samples = ~1 minute at 2s intervals)
-                if self.usage_tracker.sample_count() % 30 == 0 {
-                    let _ = self.usage_tracker.save_to_file(&self.config.samples_file);
-                }
-
-                // Calculate projections if we have enough data
-                if self.usage_tracker.has_enough_data() {
-                    // Session rate
-                    quota.session_rate_per_hour = self.usage_tracker.calculate_rate_per_hour(true);
-
-                    // Week rate
-                    quota.week_rate_per_hour = self.usage_tracker.calculate_rate_per_hour(false);
-
-                    // Session depletion
-                    if let (Some(usage), Some(resets_at)) = (quota.session_usage, &quota.session_resets_at) {
-                        match self.usage_tracker.session_depletion_status(usage, resets_at) {
-                            DepletionStatus::Depleting { hours_remaining } => {
-                                quota.session_hours_to_depletion = Some(hours_remaining);
-                                quota.session_is_safe = Some(false);
-                            }
-                            DepletionStatus::Safe { hours_until_reset } => {
-                                quota.session_hours_to_depletion = Some(hours_until_reset);
-                                quota.session_is_safe = Some(true);
-                            }
-                            _ => {}
-                        }
-                    }
-
-                    // Week depletion
-                    if let (Some(usage), Some(resets_at)) = (quota.week_usage, &quota.week_resets_at) {
-                        match self.usage_tracker.week_depletion_status(usage, resets_at) {
-                            DepletionStatus::Depleting { hours_remaining } => {
-                                quota.week_hours_to_depletion = Some(hours_remaining);
-                                quota.week_is_safe = Some(false);
-                            }
-                            DepletionStatus::Safe { hours_until_reset } => {
-                                quota.week_hours_to_depletion = Some(hours_until_reset);
-                                quota.week_is_safe = Some(true);
-                            }
-                            _ => {}
-                        }
-                    }
-                }
-
-                self.quota = quota;
-            }
+            Ok(quota) => self.process_quota(quota),
             Err(e) => {
                 self.quota.last_error = Some(e.to_string());
             }
         }
+    }
+
+    /// Handle async quota result from background thread
+    pub fn apply_quota_result(&mut self, result: Result<data::QuotaInfo, String>) {
+        match result {
+            Ok(quota) => self.process_quota(quota),
+            Err(e) => {
+                self.quota.last_error = Some(e);
+            }
+        }
+    }
+
+    /// Process a successfully fetched QuotaInfo (shared by sync and async paths)
+    fn process_quota(&mut self, mut quota: data::QuotaInfo) {
+        // Add sample to usage tracker
+        self.usage_tracker
+            .add_sample(quota.session_usage, quota.week_usage);
+
+        // Save samples periodically (every 30 samples = ~1 minute at 2s intervals)
+        if self.usage_tracker.sample_count() % 30 == 0 {
+            let _ = self.usage_tracker.save_to_file(&self.config.samples_file);
+        }
+
+        // Calculate projections if we have enough data
+        if self.usage_tracker.has_enough_data() {
+            // Session rate
+            quota.session_rate_per_hour = self.usage_tracker.calculate_rate_per_hour(true);
+
+            // Week rate
+            quota.week_rate_per_hour = self.usage_tracker.calculate_rate_per_hour(false);
+
+            // Session depletion
+            if let (Some(usage), Some(resets_at)) = (quota.session_usage, &quota.session_resets_at)
+            {
+                match self
+                    .usage_tracker
+                    .session_depletion_status(usage, resets_at)
+                {
+                    DepletionStatus::Depleting { hours_remaining } => {
+                        quota.session_hours_to_depletion = Some(hours_remaining);
+                        quota.session_is_safe = Some(false);
+                    }
+                    DepletionStatus::Safe { hours_until_reset } => {
+                        quota.session_hours_to_depletion = Some(hours_until_reset);
+                        quota.session_is_safe = Some(true);
+                    }
+                    _ => {}
+                }
+            }
+
+            // Week depletion
+            if let (Some(usage), Some(resets_at)) = (quota.week_usage, &quota.week_resets_at) {
+                match self.usage_tracker.week_depletion_status(usage, resets_at) {
+                    DepletionStatus::Depleting { hours_remaining } => {
+                        quota.week_hours_to_depletion = Some(hours_remaining);
+                        quota.week_is_safe = Some(false);
+                    }
+                    DepletionStatus::Safe { hours_until_reset } => {
+                        quota.week_hours_to_depletion = Some(hours_until_reset);
+                        quota.week_is_safe = Some(true);
+                    }
+                    _ => {}
+                }
+            }
+        }
+
+        self.quota = quota;
     }
 
     pub fn next_panel(&mut self) {
@@ -232,7 +251,11 @@ impl App {
     }
 
     pub fn scroll_up(&mut self) {
-        if self.focused_panel == Panel::Sessions && self.selected_session > 0 {
+        if self.selected_session_id.is_some() {
+            if self.session_details_scroll > 0 {
+                self.session_details_scroll -= 1;
+            }
+        } else if self.focused_panel == Panel::Sessions && self.selected_session > 0 {
             self.selected_session -= 1;
             if self.selected_session < self.session_scroll {
                 self.session_scroll = self.selected_session;
@@ -241,7 +264,12 @@ impl App {
     }
 
     pub fn scroll_down(&mut self) {
-        if self.focused_panel == Panel::Sessions && self.selected_session < self.sessions.len().saturating_sub(1) {
+        if self.selected_session_id.is_some() {
+            // Unbounded scroll for now, could bound by number of messages
+            self.session_details_scroll += 1;
+        } else if self.focused_panel == Panel::Sessions
+            && self.selected_session < self.sessions.len().saturating_sub(1)
+        {
             self.selected_session += 1;
             // Adjust scroll to keep selection visible (assuming ~5 visible rows)
             if self.selected_session >= self.session_scroll + 4 {
@@ -252,14 +280,213 @@ impl App {
 
     pub fn refresh(&mut self) {
         self.load_data();
-        self.load_quota();
+        // Quota will be refreshed asynchronously by the event handler
     }
 
     pub fn quit(&mut self) {
+        // Save usage tracker samples before exiting
+        let _ = self.usage_tracker.save_to_file(&self.config.samples_file);
         self.should_quit = true;
     }
 
     pub fn toggle_live(&mut self) {
         self.is_live = !self.is_live;
+    }
+
+    pub fn export_data(&mut self) {
+        use serde::Serialize;
+
+        #[derive(Serialize)]
+        struct ExportData<'a> {
+            stats: Option<&'a StatsCache>,
+            top_projects: &'a [ProjectStats],
+            total_cost: f64,
+            monthly_projection: f64,
+            timestamp: chrono::DateTime<chrono::Local>,
+        }
+
+        let data = ExportData {
+            stats: self.stats.as_ref(),
+            top_projects: &self.top_projects,
+            total_cost: self.total_cost,
+            monthly_projection: self.monthly_projection,
+            timestamp: chrono::Local::now(),
+        };
+
+        let home = match dirs::home_dir() {
+            Some(path) => path,
+            None => {
+                self.export_message = Some("Failed to find home directory".to_string());
+                return;
+            }
+        };
+
+        let export_path = home.join("claude_monitor_export.json");
+
+        match serde_json::to_string_pretty(&data) {
+            Ok(json) => match std::fs::write(&export_path, json) {
+                Ok(_) => {
+                    self.export_message = Some(format!("Exported to {}", export_path.display()));
+                }
+                Err(e) => {
+                    self.export_message = Some(format!("Export failed: {}", e));
+                }
+            },
+            Err(e) => {
+                self.export_message = Some(format!("Serialization failed: {}", e));
+            }
+        }
+    }
+    pub fn select_current_session(&mut self) {
+        if self.focused_panel == Panel::Sessions && self.selected_session < self.sessions.len() {
+            let session = &self.sessions[self.selected_session];
+            self.selected_session_id = Some(session.session_id.clone());
+            self.session_details_scroll = 0;
+        }
+    }
+
+    pub fn close_session_details(&mut self) -> bool {
+        if self.selected_session_id.is_some() {
+            self.selected_session_id = None;
+            true
+        } else {
+            false
+        }
+    }
+
+    pub fn get_session_history(&self, session_id: &str) -> Vec<&data::HistoryEntry> {
+        let mut entries: Vec<_> = self
+            .history_entries
+            .iter()
+            .filter(|e| e.session_id == session_id)
+            .collect();
+        entries.sort_by_key(|e| e.timestamp);
+        entries
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn test_app() -> App {
+        let config = Config::default();
+        let mut app = App::new(config);
+        // Add some mock sessions for scroll tests
+        app.sessions = (0..10)
+            .map(|i| data::SessionInfo {
+                session_id: format!("session-{}", i),
+                project: format!("/test/project-{}", i),
+                project_name: format!("project-{}", i),
+                first_timestamp: 1000 * i as u64,
+                last_timestamp: 2000 * i as u64,
+                message_count: (i + 1) as u64,
+                is_active: i == 0,
+            })
+            .collect();
+        app
+    }
+
+    #[test]
+    fn test_panel_next_cycles_through_all() {
+        let mut panel = Panel::Summary;
+        let mut visited = vec![panel];
+        for _ in 0..9 {
+            panel = panel.next();
+            visited.push(panel);
+        }
+        assert_eq!(visited.len(), 10);
+        // Full cycle returns to start
+        assert_eq!(panel.next(), Panel::Summary);
+    }
+
+    #[test]
+    fn test_panel_prev_cycles_through_all() {
+        let mut panel = Panel::Summary;
+        let mut visited = vec![panel];
+        for _ in 0..9 {
+            panel = panel.prev();
+            visited.push(panel);
+        }
+        assert_eq!(visited.len(), 10);
+        // Full cycle returns to start
+        assert_eq!(panel.prev(), Panel::Summary);
+    }
+
+    #[test]
+    fn test_panel_next_prev_are_inverse() {
+        for &panel in ALL_PANELS {
+            assert_eq!(panel.next().prev(), panel);
+            assert_eq!(panel.prev().next(), panel);
+        }
+    }
+
+    #[test]
+    fn test_scroll_down_increments() {
+        let mut app = test_app();
+        app.focused_panel = Panel::Sessions;
+        assert_eq!(app.selected_session, 0);
+        app.scroll_down();
+        assert_eq!(app.selected_session, 1);
+        app.scroll_down();
+        assert_eq!(app.selected_session, 2);
+    }
+
+    #[test]
+    fn test_scroll_up_at_zero_stays() {
+        let mut app = test_app();
+        app.focused_panel = Panel::Sessions;
+        assert_eq!(app.selected_session, 0);
+        app.scroll_up();
+        assert_eq!(app.selected_session, 0);
+    }
+
+    #[test]
+    fn test_scroll_down_stops_at_end() {
+        let mut app = test_app();
+        app.focused_panel = Panel::Sessions;
+        for _ in 0..20 {
+            app.scroll_down();
+        }
+        assert_eq!(app.selected_session, 9); // 10 sessions, 0-indexed
+    }
+
+    #[test]
+    fn test_scroll_only_in_sessions_panel() {
+        let mut app = test_app();
+        app.focused_panel = Panel::Summary;
+        app.scroll_down();
+        assert_eq!(app.selected_session, 0); // No change
+    }
+
+    #[test]
+    fn test_toggle_live() {
+        let mut app = test_app();
+        assert!(app.is_live);
+        app.toggle_live();
+        assert!(!app.is_live);
+        app.toggle_live();
+        assert!(app.is_live);
+    }
+
+    #[test]
+    fn test_apply_quota_result_success() {
+        let mut app = test_app();
+        let quota = data::QuotaInfo {
+            session_usage: Some(42.0),
+            week_usage: Some(15.0),
+            ..Default::default()
+        };
+        app.apply_quota_result(Ok(quota));
+        assert_eq!(app.quota.session_usage, Some(42.0));
+        assert_eq!(app.quota.week_usage, Some(15.0));
+        assert!(app.quota.last_error.is_none());
+    }
+
+    #[test]
+    fn test_apply_quota_result_error() {
+        let mut app = test_app();
+        app.apply_quota_result(Err("API timeout".to_string()));
+        assert_eq!(app.quota.last_error, Some("API timeout".to_string()));
     }
 }

@@ -1,6 +1,6 @@
-use std::path::Path;
-use anyhow::Result;
 use super::models::StatsCache;
+use anyhow::Result;
+use std::path::Path;
 
 pub fn parse_stats_cache(path: &Path) -> Result<StatsCache> {
     let content = std::fs::read_to_string(path)?;

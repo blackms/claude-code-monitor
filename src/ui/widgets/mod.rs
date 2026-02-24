@@ -1,8 +1,9 @@
+pub mod activity_chart;
+pub mod cost_display;
+pub mod hourly_chart;
+pub mod session_details;
+pub mod session_list;
+pub mod statistics;
 pub mod summary;
 pub mod token_usage;
-pub mod cost_display;
-pub mod activity_chart;
-pub mod hourly_chart;
-pub mod session_list;
 pub mod trend_display;
-pub mod statistics;

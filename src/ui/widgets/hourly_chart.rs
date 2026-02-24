@@ -46,8 +46,8 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App, theme: &Theme, focused: 
     let max_count = hour_data.iter().map(|(_, c)| *c).max().unwrap_or(1);
 
     // Display in two columns
-    let chunks = Layout::horizontal([Constraint::Percentage(50), Constraint::Percentage(50)])
-        .split(inner);
+    let chunks =
+        Layout::horizontal([Constraint::Percentage(50), Constraint::Percentage(50)]).split(inner);
 
     let bar_width = (chunks[0].width.saturating_sub(10)) as usize;
 

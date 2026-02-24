@@ -1,22 +1,23 @@
-pub mod models;
-pub mod stats;
-pub mod history;
-pub mod quota;
-pub mod usage_tracker;
-pub mod trends;
 pub mod calculations;
+pub mod history;
+pub mod models;
 pub mod persistence;
+pub mod quota;
+pub mod stats;
+pub mod trends;
+pub mod usage_tracker;
 
-pub use models::*;
-pub use stats::parse_stats_cache;
-pub use history::{parse_history, group_sessions, count_today_messages, count_recent_messages, count_projects, ProjectStats};
-pub use quota::{fetch_quota, QuotaInfo};
-pub use usage_tracker::{UsageTracker, DepletionStatus, format_hours};
-pub use trends::{TrendData, Trend, render_sparkline};
 pub use calculations::{
-    ModelPricing,
-    CacheEfficiency, Averages, WebSearchStats,
-    calculate_monthly_projection, calculate_total_cost,
-    format_duration_ms, format_first_session_date,
-    format_number, format_currency, shorten_model_name,
+    calculate_monthly_projection, calculate_total_cost, format_currency, format_duration_ms,
+    format_first_session_date, format_number, shorten_model_name, Averages, CacheEfficiency,
+    ModelPricing, WebSearchStats,
 };
+pub use history::{
+    count_projects, count_recent_messages, count_today_messages, group_sessions, parse_history,
+    ProjectStats,
+};
+pub use models::*;
+pub use quota::{fetch_quota, QuotaInfo};
+pub use stats::parse_stats_cache;
+pub use trends::{render_sparkline, Trend, TrendData};
+pub use usage_tracker::{format_hours, DepletionStatus, UsageTracker};

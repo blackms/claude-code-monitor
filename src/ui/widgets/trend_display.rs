@@ -6,7 +6,7 @@ use ratatui::{
 };
 
 use crate::app::App;
-use crate::data::{Trend, render_sparkline, format_number};
+use crate::data::{format_number, render_sparkline, Trend};
 use crate::ui::theme::Theme;
 
 pub fn render(frame: &mut Frame, area: Rect, app: &App, theme: &Theme, focused: bool) {
@@ -44,9 +44,10 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App, theme: &Theme, focused: 
     let trend_data = &app.trend_data;
 
     // Today vs Yesterday
-    let line = Line::from(vec![
-        Span::styled("── Today vs Yesterday ──", theme.label_style()),
-    ]);
+    let line = Line::from(vec![Span::styled(
+        "── Today vs Yesterday ──",
+        theme.label_style(),
+    )]);
     frame.render_widget(Paragraph::new(line), chunks[0]);
 
     // Day messages comparison
@@ -63,15 +64,19 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App, theme: &Theme, focused: 
 
     let line = Line::from(vec![
         Span::styled("Messages   ", theme.label_style()),
-        Span::styled(format!("{:<6}", format_number(trend_data.day.current_messages)), theme.value_style()),
+        Span::styled(
+            format!("{:<6}", format_number(trend_data.day.current_messages)),
+            theme.value_style(),
+        ),
         Span::styled(change_str, day_trend_style),
     ]);
     frame.render_widget(Paragraph::new(line), chunks[1]);
 
     // This Week vs Last Week
-    let line = Line::from(vec![
-        Span::styled("── This Week vs Last ──", theme.label_style()),
-    ]);
+    let line = Line::from(vec![Span::styled(
+        "── This Week vs Last ──",
+        theme.label_style(),
+    )]);
     frame.render_widget(Paragraph::new(line), chunks[3]);
 
     // Week messages comparison
@@ -88,15 +93,19 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App, theme: &Theme, focused: 
 
     let line = Line::from(vec![
         Span::styled("Messages   ", theme.label_style()),
-        Span::styled(format!("{:<6}", format_number(trend_data.week.current_messages)), theme.value_style()),
+        Span::styled(
+            format!("{:<6}", format_number(trend_data.week.current_messages)),
+            theme.value_style(),
+        ),
         Span::styled(week_change_str, week_trend_style),
     ]);
     frame.render_widget(Paragraph::new(line), chunks[4]);
 
     // This Month vs Last Month
-    let line = Line::from(vec![
-        Span::styled("── This Month vs Last ──", theme.label_style()),
-    ]);
+    let line = Line::from(vec![Span::styled(
+        "── This Month vs Last ──",
+        theme.label_style(),
+    )]);
     frame.render_widget(Paragraph::new(line), chunks[6]);
 
     // Month messages comparison
@@ -107,26 +116,29 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App, theme: &Theme, focused: 
     };
 
     let month_change_str = match trend_data.month.messages_change_pct {
-        Some(pct) => format!("{} ({:+.0}%)", trend_data.month.messages_trend.symbol(), pct),
+        Some(pct) => format!(
+            "{} ({:+.0}%)",
+            trend_data.month.messages_trend.symbol(),
+            pct
+        ),
         None => trend_data.month.messages_trend.symbol().to_string(),
     };
 
     let line = Line::from(vec![
         Span::styled("Messages   ", theme.label_style()),
-        Span::styled(format!("{:<6}", format_number(trend_data.month.current_messages)), theme.value_style()),
+        Span::styled(
+            format!("{:<6}", format_number(trend_data.month.current_messages)),
+            theme.value_style(),
+        ),
         Span::styled(month_change_str, month_trend_style),
     ]);
     frame.render_widget(Paragraph::new(line), chunks[7]);
 
     // 7-day trend sparkline
-    let line = Line::from(vec![
-        Span::styled("7-day trend:", theme.label_style()),
-    ]);
+    let line = Line::from(vec![Span::styled("7-day trend:", theme.label_style())]);
     frame.render_widget(Paragraph::new(line), chunks[9]);
 
     let sparkline_str = render_sparkline(&trend_data.sparkline);
-    let line = Line::from(vec![
-        Span::styled(sparkline_str, theme.sparkline_style()),
-    ]);
+    let line = Line::from(vec![Span::styled(sparkline_str, theme.sparkline_style())]);
     frame.render_widget(Paragraph::new(line), chunks[10]);
 }

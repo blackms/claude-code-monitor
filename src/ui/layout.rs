@@ -12,6 +12,11 @@ use crate::ui::widgets;
 pub fn render(frame: &mut Frame, app: &App) {
     let size = frame.size();
 
+    if app.selected_session_id.is_some() {
+        render_session_details_layout(frame, app);
+        return;
+    }
+
     if size.height < 35 {
         render_compact_layout(frame, app);
     } else if size.height < 50 {
@@ -21,17 +26,34 @@ pub fn render(frame: &mut Frame, app: &App) {
     }
 }
 
-/// Compact layout (< 35 rows): Summary + Quota + Sessions
-fn render_compact_layout(frame: &mut Frame, app: &App) {
-    let theme = Theme::default();
+fn render_session_details_layout(frame: &mut Frame, app: &App) {
+    let theme = Theme::from_preset(&app.config.theme);
 
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Length(3),  // Header
-            Constraint::Min(10),    // Summary + Quota side by side
-            Constraint::Length(6),  // Sessions
-            Constraint::Length(1),  // Status bar
+            Constraint::Length(3), // Header
+            Constraint::Min(10),   // Session Details
+            Constraint::Length(1), // Status bar
+        ])
+        .split(frame.size());
+
+    render_header(frame, chunks[0], &theme);
+    widgets::session_details::render(frame, chunks[1], app, &theme);
+    render_status_bar(frame, chunks[2], app, &theme);
+}
+
+/// Compact layout (< 35 rows): Summary + Quota + Sessions
+fn render_compact_layout(frame: &mut Frame, app: &App) {
+    let theme = Theme::from_preset(&app.config.theme);
+
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Length(3), // Header
+            Constraint::Min(10),   // Summary + Quota side by side
+            Constraint::Length(6), // Sessions
+            Constraint::Length(1), // Status bar
         ])
         .split(frame.size());
 
@@ -43,59 +65,113 @@ fn render_compact_layout(frame: &mut Frame, app: &App) {
         .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
         .split(chunks[1]);
 
-    widgets::summary::render(frame, main_cols[0], app, &theme, app.focused_panel == Panel::Summary);
-    widgets::cost_display::render_usage_quota(frame, main_cols[1], app, &theme, app.focused_panel == Panel::UsageQuota);
+    widgets::summary::render(
+        frame,
+        main_cols[0],
+        app,
+        &theme,
+        app.focused_panel == Panel::Summary,
+    );
+    widgets::cost_display::render_usage_quota(
+        frame,
+        main_cols[1],
+        app,
+        &theme,
+        app.focused_panel == Panel::UsageQuota,
+    );
 
-    widgets::session_list::render(frame, chunks[2], app, &theme, app.focused_panel == Panel::Sessions);
+    widgets::session_list::render(
+        frame,
+        chunks[2],
+        app,
+        &theme,
+        app.focused_panel == Panel::Sessions,
+    );
     render_status_bar(frame, chunks[3], app, &theme);
 }
 
 /// Medium layout (35-50 rows): Full layout without Hourly chart
 fn render_medium_layout(frame: &mut Frame, app: &App) {
-    let theme = Theme::default();
+    let theme = Theme::from_preset(&app.config.theme);
 
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Length(3),  // Header
-            Constraint::Min(14),    // Main content
-            Constraint::Length(8),  // Usage quota
-            Constraint::Length(3),  // Daily activity
-            Constraint::Length(5),  // Sessions
-            Constraint::Length(1),  // Status bar
+            Constraint::Length(3), // Header
+            Constraint::Min(14),   // Main content
+            Constraint::Length(8), // Usage quota
+            Constraint::Length(3), // Daily activity
+            Constraint::Length(5), // Sessions
+            Constraint::Length(1), // Status bar
         ])
         .split(frame.size());
 
     render_header(frame, chunks[0], &theme);
     render_main_content(frame, chunks[1], app, &theme);
-    widgets::cost_display::render_usage_quota(frame, chunks[2], app, &theme, app.focused_panel == Panel::UsageQuota);
-    widgets::activity_chart::render(frame, chunks[3], app, &theme, app.focused_panel == Panel::ActivityChart);
-    widgets::session_list::render(frame, chunks[4], app, &theme, app.focused_panel == Panel::Sessions);
+    widgets::cost_display::render_usage_quota(
+        frame,
+        chunks[2],
+        app,
+        &theme,
+        app.focused_panel == Panel::UsageQuota,
+    );
+    widgets::activity_chart::render(
+        frame,
+        chunks[3],
+        app,
+        &theme,
+        app.focused_panel == Panel::ActivityChart,
+    );
+    widgets::session_list::render(
+        frame,
+        chunks[4],
+        app,
+        &theme,
+        app.focused_panel == Panel::Sessions,
+    );
     render_status_bar(frame, chunks[5], app, &theme);
 }
 
 /// Full layout (>= 50 rows): Complete layout with Top Projects
 fn render_full_layout(frame: &mut Frame, app: &App) {
-    let theme = Theme::default();
+    let theme = Theme::from_preset(&app.config.theme);
 
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Length(3),  // Header
-            Constraint::Min(16),    // Main content
-            Constraint::Length(8),  // Usage quota
-            Constraint::Length(3),  // Daily activity
-            Constraint::Length(5),  // Hourly distribution
-            Constraint::Length(8),  // Sessions + Top Projects
-            Constraint::Length(1),  // Status bar
+            Constraint::Length(3), // Header
+            Constraint::Min(16),   // Main content
+            Constraint::Length(8), // Usage quota
+            Constraint::Length(3), // Daily activity
+            Constraint::Length(5), // Hourly distribution
+            Constraint::Length(8), // Sessions + Top Projects
+            Constraint::Length(1), // Status bar
         ])
         .split(frame.size());
 
     render_header(frame, chunks[0], &theme);
     render_main_content_full(frame, chunks[1], app, &theme);
-    widgets::cost_display::render_usage_quota(frame, chunks[2], app, &theme, app.focused_panel == Panel::UsageQuota);
-    widgets::activity_chart::render(frame, chunks[3], app, &theme, app.focused_panel == Panel::ActivityChart);
-    widgets::hourly_chart::render(frame, chunks[4], app, &theme, app.focused_panel == Panel::HourlyChart);
+    widgets::cost_display::render_usage_quota(
+        frame,
+        chunks[2],
+        app,
+        &theme,
+        app.focused_panel == Panel::UsageQuota,
+    );
+    widgets::activity_chart::render(
+        frame,
+        chunks[3],
+        app,
+        &theme,
+        app.focused_panel == Panel::ActivityChart,
+    );
+    widgets::hourly_chart::render(
+        frame,
+        chunks[4],
+        app,
+        &theme,
+        app.focused_panel == Panel::HourlyChart,
+    );
 
     // Sessions + Top Projects side by side
     let bottom_cols = Layout::default()
@@ -103,19 +179,23 @@ fn render_full_layout(frame: &mut Frame, app: &App) {
         .constraints([Constraint::Percentage(60), Constraint::Percentage(40)])
         .split(chunks[5]);
 
-    widgets::session_list::render(frame, bottom_cols[0], app, &theme, app.focused_panel == Panel::Sessions);
+    widgets::session_list::render(
+        frame,
+        bottom_cols[0],
+        app,
+        &theme,
+        app.focused_panel == Panel::Sessions,
+    );
     render_top_projects_panel(frame, bottom_cols[1], app, &theme);
 
     render_status_bar(frame, chunks[6], app, &theme);
 }
 
 fn render_header(frame: &mut Frame, area: Rect, theme: &Theme) {
-    let title = Line::from(vec![
-        Span::styled(
-            "                    Claude Code Monitor v0.3.0                    ",
-            theme.title_style(),
-        ),
-    ]);
+    let title = Line::from(vec![Span::styled(
+        "                    Claude Code Monitor v0.3.0                    ",
+        theme.title_style(),
+    )]);
 
     let block = Block::default()
         .borders(Borders::ALL)
@@ -136,29 +216,65 @@ fn render_main_content(frame: &mut Frame, area: Rect, app: &App, theme: &Theme) 
     let left_chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Percentage(45),  // Summary (with extended stats)
-            Constraint::Percentage(30),  // Cache Efficiency
-            Constraint::Percentage(25),  // Cost Summary
+            Constraint::Percentage(45), // Summary (with extended stats)
+            Constraint::Percentage(30), // Cache Efficiency
+            Constraint::Percentage(25), // Cost Summary
         ])
         .split(columns[0]);
 
-    widgets::summary::render(frame, left_chunks[0], app, theme, app.focused_panel == Panel::Summary);
-    widgets::statistics::render_cache_efficiency(frame, left_chunks[1], app, theme, app.focused_panel == Panel::CacheEfficiency);
-    widgets::cost_display::render_costs_summary(frame, left_chunks[2], app, theme, app.focused_panel == Panel::CostsSummary);
+    widgets::summary::render(
+        frame,
+        left_chunks[0],
+        app,
+        theme,
+        app.focused_panel == Panel::Summary,
+    );
+    widgets::statistics::render_cache_efficiency(
+        frame,
+        left_chunks[1],
+        app,
+        theme,
+        app.focused_panel == Panel::CacheEfficiency,
+    );
+    widgets::cost_display::render_costs_summary(
+        frame,
+        left_chunks[2],
+        app,
+        theme,
+        app.focused_panel == Panel::CostsSummary,
+    );
 
     // Right column: Token Usage + Trends + Cost Breakdown
     let right_chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Percentage(40),  // Token Usage
-            Constraint::Percentage(35),  // Trends
-            Constraint::Percentage(25),  // Cost Breakdown
+            Constraint::Percentage(40), // Token Usage
+            Constraint::Percentage(35), // Trends
+            Constraint::Percentage(25), // Cost Breakdown
         ])
         .split(columns[1]);
 
-    widgets::token_usage::render(frame, right_chunks[0], app, theme, app.focused_panel == Panel::TokenUsage);
-    widgets::trend_display::render(frame, right_chunks[1], app, theme, app.focused_panel == Panel::Trends);
-    widgets::cost_display::render_cost_breakdown(frame, right_chunks[2], app, theme, app.focused_panel == Panel::CostBreakdown);
+    widgets::token_usage::render(
+        frame,
+        right_chunks[0],
+        app,
+        theme,
+        app.focused_panel == Panel::TokenUsage,
+    );
+    widgets::trend_display::render(
+        frame,
+        right_chunks[1],
+        app,
+        theme,
+        app.focused_panel == Panel::Trends,
+    );
+    widgets::cost_display::render_cost_breakdown(
+        frame,
+        right_chunks[2],
+        app,
+        theme,
+        app.focused_panel == Panel::CostBreakdown,
+    );
 }
 
 /// Full main content layout with all panels
@@ -173,29 +289,65 @@ fn render_main_content_full(frame: &mut Frame, area: Rect, app: &App, theme: &Th
     let left_chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Percentage(45),  // Summary
-            Constraint::Percentage(30),  // Cache Efficiency
-            Constraint::Percentage(25),  // Cost Summary
+            Constraint::Percentage(45), // Summary
+            Constraint::Percentage(30), // Cache Efficiency
+            Constraint::Percentage(25), // Cost Summary
         ])
         .split(columns[0]);
 
-    widgets::summary::render(frame, left_chunks[0], app, theme, app.focused_panel == Panel::Summary);
-    widgets::statistics::render_cache_efficiency(frame, left_chunks[1], app, theme, app.focused_panel == Panel::CacheEfficiency);
-    widgets::cost_display::render_costs_summary(frame, left_chunks[2], app, theme, app.focused_panel == Panel::CostsSummary);
+    widgets::summary::render(
+        frame,
+        left_chunks[0],
+        app,
+        theme,
+        app.focused_panel == Panel::Summary,
+    );
+    widgets::statistics::render_cache_efficiency(
+        frame,
+        left_chunks[1],
+        app,
+        theme,
+        app.focused_panel == Panel::CacheEfficiency,
+    );
+    widgets::cost_display::render_costs_summary(
+        frame,
+        left_chunks[2],
+        app,
+        theme,
+        app.focused_panel == Panel::CostsSummary,
+    );
 
     // Right column: Token Usage + Trends + Cost Breakdown
     let right_chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Percentage(35),  // Token Usage
-            Constraint::Percentage(40),  // Trends (more space for month comparison)
-            Constraint::Percentage(25),  // Cost Breakdown
+            Constraint::Percentage(35), // Token Usage
+            Constraint::Percentage(40), // Trends (more space for month comparison)
+            Constraint::Percentage(25), // Cost Breakdown
         ])
         .split(columns[1]);
 
-    widgets::token_usage::render(frame, right_chunks[0], app, theme, app.focused_panel == Panel::TokenUsage);
-    widgets::trend_display::render(frame, right_chunks[1], app, theme, app.focused_panel == Panel::Trends);
-    widgets::cost_display::render_cost_breakdown(frame, right_chunks[2], app, theme, app.focused_panel == Panel::CostBreakdown);
+    widgets::token_usage::render(
+        frame,
+        right_chunks[0],
+        app,
+        theme,
+        app.focused_panel == Panel::TokenUsage,
+    );
+    widgets::trend_display::render(
+        frame,
+        right_chunks[1],
+        app,
+        theme,
+        app.focused_panel == Panel::Trends,
+    );
+    widgets::cost_display::render_cost_breakdown(
+        frame,
+        right_chunks[2],
+        app,
+        theme,
+        app.focused_panel == Panel::CostBreakdown,
+    );
 }
 
 /// Render Top Projects panel
@@ -210,9 +362,7 @@ fn render_top_projects_panel(frame: &mut Frame, area: Rect, app: &App, theme: &T
     frame.render_widget(block, area);
 
     if app.top_projects.is_empty() {
-        let line = Line::from(vec![
-            Span::styled("No project data", theme.label_style()),
-        ]);
+        let line = Line::from(vec![Span::styled("No project data", theme.label_style())]);
         frame.render_widget(Paragraph::new(line), inner);
         return;
     }
@@ -231,7 +381,10 @@ fn render_top_projects_panel(frame: &mut Frame, area: Rect, app: &App, theme: &T
         let name = truncate_str(&project.name, 18);
         let line = Line::from(vec![
             Span::styled(format!("{:<18}", name), theme.value_style()),
-            Span::styled(format!(" {:>5}", format_number(project.message_count)), theme.label_style()),
+            Span::styled(
+                format!(" {:>5}", format_number(project.message_count)),
+                theme.label_style(),
+            ),
         ]);
         frame.render_widget(Paragraph::new(line), chunks[i]);
     }
@@ -276,14 +429,19 @@ fn render_status_bar(frame: &mut Frame, area: Rect, app: &App, theme: &Theme) {
         )
     };
 
-    let error_display = if let Some(ref err) = app.last_error {
-        Span::styled(format!(" │ Error: {}", truncate_error(err)), theme.warning_style())
+    let error_display = if let Some(ref msg) = app.export_message {
+        Span::styled(format!(" │ {}", msg), theme.success_style())
+    } else if let Some(ref err) = app.last_error {
+        Span::styled(
+            format!(" │ Error: {}", truncate_error(err)),
+            theme.warning_style(),
+        )
     } else {
         Span::raw("")
     };
 
     let help = Span::styled(
-        " │ q: Quit │ r: Refresh │ Tab: Navigate │ ↑↓: Scroll",
+        " │ q: Quit │ r: Refresh │ e: Export │ Tab: Navigate │ ↑↓: Scroll",
         theme.label_style(),
     );
 

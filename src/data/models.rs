@@ -1,7 +1,7 @@
 use serde::Deserialize;
 use std::collections::HashMap;
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 #[allow(dead_code)]
 pub struct StatsCache {
@@ -19,7 +19,7 @@ pub struct StatsCache {
     pub total_speculation_time_saved_ms: u64,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 #[allow(dead_code)]
 pub struct DailyActivity {
@@ -29,7 +29,7 @@ pub struct DailyActivity {
     pub tool_call_count: u64,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 #[allow(dead_code)]
 pub struct DailyModelTokens {
@@ -37,7 +37,7 @@ pub struct DailyModelTokens {
     pub tokens_by_model: HashMap<String, u64>,
 }
 
-#[derive(Debug, Clone, Deserialize, Default)]
+#[derive(Debug, Clone, Deserialize, serde::Serialize, Default)]
 #[serde(rename_all = "camelCase")]
 #[allow(dead_code)]
 pub struct ModelUsage {
@@ -55,7 +55,7 @@ pub struct ModelUsage {
     pub max_output_tokens: u64,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 #[allow(dead_code)]
 pub struct LongestSession {
@@ -65,7 +65,7 @@ pub struct LongestSession {
     pub timestamp: String,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 #[allow(dead_code)]
 pub struct HistoryEntry {
@@ -91,8 +91,11 @@ pub struct SessionInfo {
 
 impl SessionInfo {
     pub fn formatted_time(&self) -> String {
-        use chrono::{TimeZone, Utc};
-        if let Some(dt) = Utc.timestamp_millis_opt(self.last_timestamp as i64).single() {
+        use chrono::{Local, TimeZone};
+        if let Some(dt) = Local
+            .timestamp_millis_opt(self.last_timestamp as i64)
+            .single()
+        {
             dt.format("%b %d %H:%M").to_string()
         } else {
             "Unknown".to_string()

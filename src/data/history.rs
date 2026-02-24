@@ -1,17 +1,20 @@
-use std::collections::HashMap;
-use std::path::Path;
-use anyhow::Result;
 use super::models::{HistoryEntry, SessionInfo};
+use anyhow::Result;
+use std::collections::HashMap;
+use std::io::{BufRead, BufReader};
+use std::path::Path;
 
 pub fn parse_history(path: &Path) -> Result<Vec<HistoryEntry>> {
-    let content = std::fs::read_to_string(path)?;
+    let file = std::fs::File::open(path)?;
+    let reader = BufReader::new(file);
     let mut entries = Vec::new();
 
-    for line in content.lines() {
+    for line in reader.lines() {
+        let line = line?;
         if line.trim().is_empty() {
             continue;
         }
-        match serde_json::from_str::<HistoryEntry>(line) {
+        match serde_json::from_str::<HistoryEntry>(&line) {
             Ok(entry) => entries.push(entry),
             Err(_) => continue, // Skip malformed lines
         }
@@ -20,7 +23,10 @@ pub fn parse_history(path: &Path) -> Result<Vec<HistoryEntry>> {
     Ok(entries)
 }
 
-pub fn group_sessions(entries: &[HistoryEntry], current_session_id: Option<&str>) -> Vec<SessionInfo> {
+pub fn group_sessions(
+    entries: &[HistoryEntry],
+    current_session_id: Option<&str>,
+) -> Vec<SessionInfo> {
     let mut sessions: HashMap<String, SessionInfo> = HashMap::new();
 
     for entry in entries {
@@ -90,14 +96,11 @@ pub fn count_today_messages(entries: &[HistoryEntry]) -> u64 {
 pub fn count_recent_messages(entries: &[HistoryEntry], hours: u64) -> u64 {
     let cutoff = chrono::Utc::now().timestamp_millis() as u64 - (hours * 60 * 60 * 1000);
 
-    entries
-        .iter()
-        .filter(|e| e.timestamp >= cutoff)
-        .count() as u64
+    entries.iter().filter(|e| e.timestamp >= cutoff).count() as u64
 }
 
 /// Project statistics
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 #[allow(dead_code)]
 pub struct ProjectStats {
     pub name: String,
@@ -178,6 +181,9 @@ mod tests {
     #[test]
     fn test_extract_project_name() {
         assert_eq!(extract_project_name("/home/user/my-project"), "my-project");
-        assert_eq!(extract_project_name("/Users/test/Projects/cool-app"), "cool-app");
+        assert_eq!(
+            extract_project_name("/Users/test/Projects/cool-app"),
+            "cool-app"
+        );
     }
 }

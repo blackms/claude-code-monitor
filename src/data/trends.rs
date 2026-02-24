@@ -63,10 +63,10 @@ impl Default for PeriodComparison {
 #[derive(Debug, Clone, Default)]
 #[allow(dead_code)]
 pub struct TrendData {
-    pub day: PeriodComparison,      // Today vs Yesterday
-    pub week: PeriodComparison,     // This week vs Last week
-    pub month: PeriodComparison,    // This month vs Last month
-    pub sparkline: Vec<u64>,        // Last 7 days message counts for sparkline
+    pub day: PeriodComparison,   // Today vs Yesterday
+    pub week: PeriodComparison,  // This week vs Last week
+    pub month: PeriodComparison, // This month vs Last month
+    pub sparkline: Vec<u64>,     // Last 7 days message counts for sparkline
 }
 
 impl TrendData {
@@ -118,8 +118,10 @@ impl TrendData {
         Self::build_comparison(
             today_messages,
             yesterday_messages,
-            0, 0,  // Tokens not available from history entries
-            0.0, 0.0,  // Cost not available
+            0,
+            0, // Tokens not available from history entries
+            0.0,
+            0.0, // Cost not available
         )
     }
 
@@ -147,12 +149,7 @@ impl TrendData {
             }
         }
 
-        Self::build_comparison(
-            this_week_messages,
-            last_week_messages,
-            0, 0,
-            0.0, 0.0,
-        )
+        Self::build_comparison(this_week_messages, last_week_messages, 0, 0, 0.0, 0.0)
     }
 
     fn calculate_month_comparison(
@@ -177,19 +174,10 @@ impl TrendData {
             }
         }
 
-        Self::build_comparison(
-            current_messages,
-            previous_messages,
-            0, 0,
-            0.0, 0.0,
-        )
+        Self::build_comparison(current_messages, previous_messages, 0, 0, 0.0, 0.0)
     }
 
-    fn build_sparkline(
-        daily_activity: &[DailyActivity],
-        today: NaiveDate,
-        days: i64,
-    ) -> Vec<u64> {
+    fn build_sparkline(daily_activity: &[DailyActivity], today: NaiveDate, days: i64) -> Vec<u64> {
         let mut counts = vec![0u64; days as usize];
 
         for activity in daily_activity {
@@ -216,8 +204,7 @@ impl TrendData {
             Self::calculate_trend(current_messages as f64, previous_messages as f64);
         let (tokens_trend, tokens_change_pct) =
             Self::calculate_trend(current_tokens as f64, previous_tokens as f64);
-        let (cost_trend, cost_change_pct) =
-            Self::calculate_trend(current_cost, previous_cost);
+        let (cost_trend, cost_change_pct) = Self::calculate_trend(current_cost, previous_cost);
 
         PeriodComparison {
             current_messages,

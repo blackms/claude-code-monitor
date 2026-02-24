@@ -1,6 +1,6 @@
-use std::collections::VecDeque;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use std::collections::VecDeque;
 
 /// Sample of quota utilization at a point in time
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -123,7 +123,12 @@ impl UsageTracker {
         self.calculate_depletion(current_util, resets_at, false)
     }
 
-    fn calculate_depletion(&self, current_util: f64, resets_at: &str, use_session: bool) -> DepletionStatus {
+    fn calculate_depletion(
+        &self,
+        current_util: f64,
+        resets_at: &str,
+        use_session: bool,
+    ) -> DepletionStatus {
         // Parse reset time
         let reset_time = match DateTime::parse_from_rfc3339(resets_at) {
             Ok(dt) => dt.with_timezone(&Utc),
@@ -146,13 +151,17 @@ impl UsageTracker {
         // Calculate hours to depletion
         let remaining_percent = 100.0 - current_util;
         if remaining_percent <= 0.0 {
-            return DepletionStatus::Depleting { hours_remaining: 0.0 };
+            return DepletionStatus::Depleting {
+                hours_remaining: 0.0,
+            };
         }
 
         let hours_to_depletion = remaining_percent / rate;
 
         if hours_to_depletion < hours_until_reset {
-            DepletionStatus::Depleting { hours_remaining: hours_to_depletion }
+            DepletionStatus::Depleting {
+                hours_remaining: hours_to_depletion,
+            }
         } else {
             DepletionStatus::Safe { hours_until_reset }
         }

@@ -86,7 +86,12 @@ impl QuotaInfo {
 /// Read OAuth credentials from macOS keychain
 fn read_credentials() -> Result<Credentials> {
     let output = Command::new("security")
-        .args(["find-generic-password", "-s", "Claude Code-credentials", "-w"])
+        .args([
+            "find-generic-password",
+            "-s",
+            "Claude Code-credentials",
+            "-w",
+        ])
         .output()?;
 
     if !output.status.success() {
@@ -105,7 +110,10 @@ pub fn fetch_quota() -> Result<QuotaInfo> {
     let client = reqwest::blocking::Client::new();
     let response = client
         .get("https://api.anthropic.com/api/oauth/usage")
-        .header("Authorization", format!("Bearer {}", creds.claude_ai_oauth.access_token))
+        .header(
+            "Authorization",
+            format!("Bearer {}", creds.claude_ai_oauth.access_token),
+        )
         .header("anthropic-beta", "oauth-2025-04-20")
         .header("Content-Type", "application/json")
         .timeout(std::time::Duration::from_secs(10))

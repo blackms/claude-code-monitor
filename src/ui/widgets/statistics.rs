@@ -10,7 +10,13 @@ use crate::data::{format_currency, format_number};
 use crate::ui::theme::Theme;
 
 /// Render cache efficiency panel
-pub fn render_cache_efficiency(frame: &mut Frame, area: Rect, app: &App, theme: &Theme, focused: bool) {
+pub fn render_cache_efficiency(
+    frame: &mut Frame,
+    area: Rect,
+    app: &App,
+    theme: &Theme,
+    focused: bool,
+) {
     let border_style = if focused {
         theme.border_focused_style()
     } else {
@@ -58,14 +64,15 @@ pub fn render_cache_efficiency(frame: &mut Frame, area: Rect, app: &App, theme: 
     // Savings
     let line = Line::from(vec![
         Span::styled("Savings:     ", theme.label_style()),
-        Span::styled(format_currency(efficiency.savings_usd), theme.success_style()),
+        Span::styled(
+            format_currency(efficiency.savings_usd),
+            theme.success_style(),
+        ),
     ]);
     frame.render_widget(Paragraph::new(line), chunks[1]);
 
     // By Model header
-    let line = Line::from(vec![
-        Span::styled("By Model:", theme.label_style()),
-    ]);
+    let line = Line::from(vec![Span::styled("By Model:", theme.label_style())]);
     frame.render_widget(Paragraph::new(line), chunks[3]);
 
     // Per-model ratios (up to 3)
@@ -97,14 +104,18 @@ pub fn render_extended_summary(frame: &mut Frame, area: Rect, app: &App, theme: 
     // Web Searches
     let line = Line::from(vec![
         Span::styled("Web Searches:", theme.label_style()),
-        Span::styled(format!(" {}", format_number(app.web_search_stats.total_searches)), theme.value_style()),
+        Span::styled(
+            format!(" {}", format_number(app.web_search_stats.total_searches)),
+            theme.value_style(),
+        ),
     ]);
     frame.render_widget(Paragraph::new(line), chunks[0]);
 
     // Longest Session header
-    let line = Line::from(vec![
-        Span::styled("── Longest Session ──", theme.label_style()),
-    ]);
+    let line = Line::from(vec![Span::styled(
+        "── Longest Session ──",
+        theme.label_style(),
+    )]);
     frame.render_widget(Paragraph::new(line), chunks[2]);
 
     // Longest session details
@@ -123,9 +134,7 @@ pub fn render_extended_summary(frame: &mut Frame, area: Rect, app: &App, theme: 
             ]);
             frame.render_widget(Paragraph::new(line), chunks[4]);
         } else {
-            let line = Line::from(vec![
-                Span::styled("No session data", theme.label_style()),
-            ]);
+            let line = Line::from(vec![Span::styled("No session data", theme.label_style())]);
             frame.render_widget(Paragraph::new(line), chunks[3]);
         }
     }
@@ -141,16 +150,23 @@ pub fn render_top_projects(frame: &mut Frame, area: Rect, app: &App, theme: &The
     let chunks = Layout::vertical(constraints).split(area);
 
     // Header
-    let line = Line::from(vec![
-        Span::styled("── Top Projects ──", theme.label_style()),
-    ]);
+    let line = Line::from(vec![Span::styled(
+        "── Top Projects ──",
+        theme.label_style(),
+    )]);
     frame.render_widget(Paragraph::new(line), chunks[0]);
 
     // Projects
     for (i, project) in app.top_projects.iter().take(5).enumerate() {
         let line = Line::from(vec![
-            Span::styled(format!("{:<14}", truncate_str(&project.name, 14)), theme.value_style()),
-            Span::styled(format!(" {:>5}", format_number(project.message_count)), theme.label_style()),
+            Span::styled(
+                format!("{:<14}", truncate_str(&project.name, 14)),
+                theme.value_style(),
+            ),
+            Span::styled(
+                format!(" {:>5}", format_number(project.message_count)),
+                theme.label_style(),
+            ),
         ]);
         frame.render_widget(Paragraph::new(line), chunks[i + 1]);
     }

@@ -55,7 +55,10 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App, theme: &Theme, focused: 
         let status = if session.is_active {
             Span::styled("Active", theme.success_style())
         } else {
-            Span::styled(format!("{} msgs", session.message_count), theme.label_style())
+            Span::styled(
+                format!("{} msgs", session.message_count),
+                theme.label_style(),
+            )
         };
 
         let prefix = if is_selected && focused {

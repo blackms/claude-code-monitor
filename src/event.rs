@@ -5,12 +5,15 @@ use std::time::{Duration, Instant};
 use crossterm::event::{self, Event as CrosstermEvent, KeyCode, KeyEvent, KeyModifiers};
 use notify::{Config as NotifyConfig, RecommendedWatcher, RecursiveMode, Watcher};
 
+use crate::data::{self, QuotaInfo};
+
 #[derive(Debug)]
 pub enum AppEvent {
     Key(KeyEvent),
     FileChanged(#[allow(dead_code)] PathBuf),
     Tick,
-    QuotaRefresh,
+    /// Quota data fetched asynchronously from the API
+    QuotaResult(Result<QuotaInfo, String>),
     DataRefresh,
 }
 
@@ -20,7 +23,12 @@ pub struct EventHandler {
 }
 
 impl EventHandler {
-    pub fn new(tick_rate: Duration, watch_paths: Vec<PathBuf>, quota_refresh_rate: Duration, data_refresh_rate: Duration) -> anyhow::Result<Self> {
+    pub fn new(
+        tick_rate: Duration,
+        watch_paths: Vec<PathBuf>,
+        quota_refresh_rate: Duration,
+        data_refresh_rate: Duration,
+    ) -> anyhow::Result<Self> {
         let (tx, rx) = mpsc::channel();
 
         // File watcher
@@ -62,11 +70,13 @@ impl EventHandler {
                         }
                     }
                 } else {
-                    // Check if it's time to refresh quota
+                    // Check if it's time to refresh quota (spawn background fetch)
                     if last_quota_refresh.elapsed() >= quota_refresh_rate {
-                        if tx_keys.send(AppEvent::QuotaRefresh).is_err() {
-                            break;
-                        }
+                        let tx_quota = tx_keys.clone();
+                        std::thread::spawn(move || {
+                            let result = data::fetch_quota().map_err(|e| e.to_string());
+                            let _ = tx_quota.send(AppEvent::QuotaResult(result));
+                        });
                         last_quota_refresh = Instant::now();
                     }
 
@@ -85,7 +95,10 @@ impl EventHandler {
             }
         });
 
-        Ok(Self { rx, _watcher: watcher })
+        Ok(Self {
+            rx,
+            _watcher: watcher,
+        })
     }
 
     pub fn next(&self) -> anyhow::Result<AppEvent> {
@@ -95,10 +108,16 @@ impl EventHandler {
 
 pub fn handle_key_event(key: KeyEvent, app: &mut crate::app::App) {
     match key.code {
-        KeyCode::Char('q') | KeyCode::Esc => app.quit(),
+        KeyCode::Char('q') | KeyCode::Esc => {
+            if !app.close_session_details() {
+                app.quit();
+            }
+        }
         KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => app.quit(),
         KeyCode::Char('r') => app.refresh(),
         KeyCode::Char('l') => app.toggle_live(),
+        KeyCode::Char('e') => app.export_data(),
+        KeyCode::Enter => app.select_current_session(),
         KeyCode::Tab => app.next_panel(),
         KeyCode::BackTab => app.prev_panel(),
         KeyCode::Up | KeyCode::Char('k') => app.scroll_up(),
