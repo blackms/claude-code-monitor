@@ -138,18 +138,6 @@ impl Theme {
         Style::default().fg(self.text_muted)
     }
 
-    /// Style for safe/OK status indicators
-    pub fn safe_style(&self) -> Style {
-        Style::default()
-            .fg(self.success)
-            .add_modifier(Modifier::BOLD)
-    }
-
-    /// Style for warning/danger status indicators
-    pub fn danger_style(&self) -> Style {
-        Style::default().fg(self.error).add_modifier(Modifier::BOLD)
-    }
-
     /// Style for sparkline bars
     pub fn sparkline_style(&self) -> Style {
         Style::default().fg(self.primary)
