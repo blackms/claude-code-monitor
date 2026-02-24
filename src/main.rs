@@ -84,6 +84,10 @@ fn run_app<B: Backend>(
                     app.load_data();
                 }
             }
+            AppEvent::ForceRefresh => {
+                app.load_data();
+                app.load_quota();
+            }
             AppEvent::Tick => {
                 // UI refresh happens on each tick
             }

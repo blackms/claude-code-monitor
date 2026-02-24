@@ -15,6 +15,7 @@ pub enum AppEvent {
     /// Quota data fetched asynchronously from the API
     QuotaResult(Result<QuotaInfo, String>),
     DataRefresh,
+    ForceRefresh,
 }
 
 pub struct EventHandler {
@@ -65,8 +66,14 @@ impl EventHandler {
             loop {
                 if event::poll(tick_rate).unwrap_or(false) {
                     if let Ok(CrosstermEvent::Key(key)) = event::read() {
-                        if tx_keys.send(AppEvent::Key(key)).is_err() {
-                            break;
+                        if key.code == KeyCode::Char('r') {
+                            if tx_keys.send(AppEvent::ForceRefresh).is_err() {
+                                break;
+                            }
+                        } else {
+                            if tx_keys.send(AppEvent::Key(key)).is_err() {
+                                break;
+                            }
                         }
                     }
                 } else {
@@ -114,7 +121,6 @@ pub fn handle_key_event(key: KeyEvent, app: &mut crate::app::App) {
             }
         }
         KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => app.quit(),
-        KeyCode::Char('r') => app.refresh(),
         KeyCode::Char('l') => app.toggle_live(),
         KeyCode::Char('c') if !key.modifiers.contains(KeyModifiers::CONTROL) => {
             app.cleanup_ghost_sessions()

@@ -280,11 +280,6 @@ impl App {
         }
     }
 
-    pub fn refresh(&mut self) {
-        self.load_data();
-        // Quota will be refreshed asynchronously by the event handler
-    }
-
     pub fn quit(&mut self) {
         // Save usage tracker samples before exiting
         let _ = self.usage_tracker.save_to_file(&self.config.samples_file);
