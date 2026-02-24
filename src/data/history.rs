@@ -114,10 +114,10 @@ pub struct ProjectStats {
 pub fn count_projects(
     entries: &[HistoryEntry],
     top_n: usize,
-    total_global_messages: u64,
     total_global_tokens: u64,
     total_global_cost: f64,
 ) -> Vec<ProjectStats> {
+    let total_history_messages = entries.len();
     let mut project_counts: HashMap<String, (String, u64)> = HashMap::new();
 
     for entry in entries {
@@ -131,8 +131,8 @@ pub fn count_projects(
     let mut projects: Vec<ProjectStats> = project_counts
         .into_iter()
         .map(|(path, (name, count))| {
-            let ratio = if total_global_messages > 0 {
-                count as f64 / total_global_messages as f64
+            let ratio = if total_history_messages > 0 {
+                count as f64 / total_history_messages as f64
             } else {
                 0.0
             };

@@ -147,14 +147,13 @@ impl App {
                 self.recent_5h_messages = data::count_recent_messages(&entries, 5);
                 self.sessions = data::group_sessions(&entries, None);
 
-                let total_global_messages = self.stats.as_ref().map(|s| s.total_messages).unwrap_or(0);
                 let total_global_tokens = self.stats.as_ref().map(|s| {
                     s.model_usage.values().map(|u| u.input_tokens + u.output_tokens + u.cache_read_input_tokens + u.cache_creation_input_tokens).sum::<u64>()
                 }).unwrap_or(0);
                 let total_global_cost = self.total_cost;
 
                 // Load all projects (0 means no truncate) for the Project Costs tab
-                self.top_projects = data::count_projects(&entries, 50, total_global_messages, total_global_tokens, total_global_cost);
+                self.top_projects = data::count_projects(&entries, 50, total_global_tokens, total_global_cost);
 
                 // Calculate trends
                 let daily_activity = self
