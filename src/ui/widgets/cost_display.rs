@@ -49,30 +49,47 @@ pub fn calculate_costs(app: &App) -> CostBreakdown {
     breakdown
 }
 
-#[allow(dead_code)]
-pub fn calculate_today_cost(app: &App) -> f64 {
-    calculate_period_cost(app, 1)
+/// Returns (cost, label) for today, estimating from live messages if needed
+pub fn calculate_today_cost(app: &App) -> (f64, String) {
+    let today_str = chrono::Local::now().format("%Y-%m-%d").to_string();
+
+    // Check if daily_model_tokens has data for today
+    if let Some(stats) = &app.stats {
+        if let Some(last_day) = stats.daily_model_tokens.last() {
+            if last_day.date == today_str {
+                // We have actual token data for today
+                let cost = calculate_period_cost(app, 1);
+                return (cost, "Today:".to_string());
+            }
+        }
+    }
+
+    // No token data for today — estimate from live message count
+    let cost = estimate_today_cost(app);
+    if cost > 0.0 {
+        return (cost, "Today (est):".to_string());
+    }
+
+    (0.0, "Today:".to_string())
 }
 
-/// Returns (cost, label with date) for the last day in stats
-pub fn calculate_last_day_cost(app: &App) -> (f64, String) {
+/// Estimate today's cost from live message count and average cost per message
+fn estimate_today_cost(app: &App) -> f64 {
+    if app.today_messages_live == 0 {
+        return 0.0;
+    }
+
     let Some(stats) = &app.stats else {
-        return (0.0, "Last day:".to_string());
+        return 0.0;
     };
 
-    let Some(last_day) = stats.daily_model_tokens.last() else {
-        return (0.0, "Last day:".to_string());
-    };
+    let total_cost = calculate_costs(app).total();
+    if stats.total_messages == 0 {
+        return 0.0;
+    }
 
-    // Format the date nicely (e.g., "Jan 31:")
-    let label = if let Ok(date) = chrono::NaiveDate::parse_from_str(&last_day.date, "%Y-%m-%d") {
-        format!("{}:", date.format("%b %d"))
-    } else {
-        format!("{}:", &last_day.date)
-    };
-
-    let cost = calculate_period_cost(app, 1);
-    (cost, label)
+    let cost_per_message = total_cost / stats.total_messages as f64;
+    app.today_messages_live as f64 * cost_per_message
 }
 
 pub fn calculate_week_cost(app: &App) -> f64 {
@@ -220,7 +237,7 @@ pub fn render_cost_breakdown(frame: &mut Frame, area: Rect, app: &App, theme: &T
     let inner = block.inner(area);
     frame.render_widget(block, area);
 
-    let (last_day_cost, last_day_label) = calculate_last_day_cost(app);
+    let (today_cost, today_label) = calculate_today_cost(app);
     let week_cost = calculate_week_cost(app);
     let month_cost = calculate_month_cost(app);
     let all_time_cost = calculate_costs(app).total();
@@ -243,7 +260,7 @@ pub fn render_cost_breakdown(frame: &mut Frame, area: Rect, app: &App, theme: &T
     frame.render_widget(Paragraph::new(line), chunks[0]);
 
     let items = [
-        (last_day_label, last_day_cost, theme.highlight_style()),
+        (today_label, today_cost, theme.highlight_style()),
         ("Last 7 days:".to_string(), week_cost, theme.value_style()),
         ("Last 30 days:".to_string(), month_cost, theme.value_style()),
         ("Projected/mo:".to_string(), app.monthly_projection, theme.warning_style()),

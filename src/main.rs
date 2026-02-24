@@ -31,13 +31,14 @@ fn main() -> Result<()> {
     let watch_paths = vec![config.stats_file.clone(), config.history_file.clone()];
     let tick_rate = config.refresh_rate;
     let quota_refresh_rate = Duration::from_secs(2); // Refresh quota every 2 seconds
+    let data_refresh_rate = Duration::from_secs(10); // Refresh stats/history every 10 seconds
 
     let mut app = App::new(config);
     app.load_data();
     app.load_quota(); // Load quota on startup
 
     // Event handler
-    let events = EventHandler::new(tick_rate, watch_paths, quota_refresh_rate)?;
+    let events = EventHandler::new(tick_rate, watch_paths, quota_refresh_rate, data_refresh_rate)?;
 
     // Main loop
     let result = run_app(&mut terminal, &mut app, &events);
@@ -72,6 +73,11 @@ fn run_app<B: Backend>(
             AppEvent::QuotaRefresh => {
                 if app.is_live {
                     app.load_quota();
+                }
+            }
+            AppEvent::DataRefresh => {
+                if app.is_live {
+                    app.load_data();
                 }
             }
             AppEvent::Tick => {

@@ -11,6 +11,7 @@ pub enum AppEvent {
     FileChanged(#[allow(dead_code)] PathBuf),
     Tick,
     QuotaRefresh,
+    DataRefresh,
 }
 
 pub struct EventHandler {
@@ -19,7 +20,7 @@ pub struct EventHandler {
 }
 
 impl EventHandler {
-    pub fn new(tick_rate: Duration, watch_paths: Vec<PathBuf>, quota_refresh_rate: Duration) -> anyhow::Result<Self> {
+    pub fn new(tick_rate: Duration, watch_paths: Vec<PathBuf>, quota_refresh_rate: Duration, data_refresh_rate: Duration) -> anyhow::Result<Self> {
         let (tx, rx) = mpsc::channel();
 
         // File watcher
@@ -51,6 +52,7 @@ impl EventHandler {
         let tx_keys = tx.clone();
         std::thread::spawn(move || {
             let mut last_quota_refresh = Instant::now();
+            let mut last_data_refresh = Instant::now();
 
             loop {
                 if event::poll(tick_rate).unwrap_or(false) {
@@ -66,6 +68,14 @@ impl EventHandler {
                             break;
                         }
                         last_quota_refresh = Instant::now();
+                    }
+
+                    // Check if it's time to refresh data (stats + history)
+                    if last_data_refresh.elapsed() >= data_refresh_rate {
+                        if tx_keys.send(AppEvent::DataRefresh).is_err() {
+                            break;
+                        }
+                        last_data_refresh = Instant::now();
                     }
 
                     if tx_keys.send(AppEvent::Tick).is_err() {
