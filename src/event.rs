@@ -126,6 +126,7 @@ pub fn handle_key_event(key: KeyEvent, app: &mut crate::app::App) {
             app.cleanup_ghost_sessions()
         }
         KeyCode::Char('m') => app.toggle_model_breakdown(),
+        KeyCode::Char('p') => app.toggle_project_costs(),
         KeyCode::Char('e') => app.export_data(),
         KeyCode::Enter => app.select_current_session(),
         KeyCode::Tab => app.next_panel(),

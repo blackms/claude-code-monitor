@@ -13,7 +13,6 @@ pub enum Panel {
     CostsSummary,
     UsageQuota,
     CostBreakdown,
-    ProjectCosts,
     ActivityChart,
     HourlyChart,
     Sessions,
@@ -27,7 +26,6 @@ const ALL_PANELS: &[Panel] = &[
     Panel::CostsSummary,
     Panel::UsageQuota,
     Panel::CostBreakdown,
-    Panel::ProjectCosts,
     Panel::ActivityChart,
     Panel::HourlyChart,
     Panel::Sessions,
@@ -60,6 +58,7 @@ pub struct App {
     pub selected_session_id: Option<String>,
     pub session_details_scroll: usize,
     pub show_model_breakdown: bool,
+    pub show_project_costs: bool,
     // Live data from history.jsonl
     pub today_messages_live: u64,
     pub recent_5h_messages: u64,
@@ -97,6 +96,7 @@ impl App {
             selected_session_id: None,
             session_details_scroll: 0,
             show_model_breakdown: false,
+            show_project_costs: false,
             today_messages_live: 0,
             recent_5h_messages: 0,
             stats_last_updated: None,
@@ -302,6 +302,15 @@ impl App {
         self.show_model_breakdown = !self.show_model_breakdown;
         if self.show_model_breakdown {
             self.selected_session_id = None;
+            self.show_project_costs = false;
+        }
+    }
+
+    pub fn toggle_project_costs(&mut self) {
+        self.show_project_costs = !self.show_project_costs;
+        if self.show_project_costs {
+            self.selected_session_id = None;
+            self.show_model_breakdown = false;
         }
     }
 

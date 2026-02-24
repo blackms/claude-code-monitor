@@ -22,7 +22,7 @@ pub fn render(frame: &mut Frame, app: &App) {
         return;
     }
 
-    if app.focused_panel == Panel::ProjectCosts {
+    if app.show_project_costs {
         render_project_costs_layout(frame, app);
         return;
     }
@@ -485,7 +485,7 @@ fn render_status_bar(frame: &mut Frame, area: Rect, app: &App, theme: &Theme) {
     };
 
     let help = Span::styled(
-        " │ q: Quit │ r: Refresh │ e: Export │ m: Models │ Tab: Navigate │ ↑↓: Scroll",
+        " │ q: Quit │ r: Refresh │ e: Export │ m: Models │ p: Projects │ Tab: Navigate │ ↑↓: Scroll",
         theme.label_style(),
     );
 
