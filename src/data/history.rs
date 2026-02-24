@@ -23,6 +23,54 @@ pub fn parse_history(path: &Path) -> Result<Vec<HistoryEntry>> {
     Ok(entries)
 }
 
+pub fn sync_history_archive(
+    archive_path: &Path,
+    recent_entries: &[HistoryEntry],
+) -> Result<Vec<HistoryEntry>> {
+    let mut all_entries = Vec::new();
+
+    // 1. Load existing archive if it exists
+    if archive_path.exists() {
+        if let Ok(archived) = parse_history(archive_path) {
+            all_entries.extend(archived);
+        }
+    }
+
+    // 2. Add recent entries, keeping track of seen timestamps+session_ids to deduplicate
+    let mut seen: std::collections::HashSet<(u64, String)> = all_entries
+        .iter()
+        .map(|e| (e.timestamp, e.session_id.clone()))
+        .collect();
+
+    let mut new_additions = 0;
+    for entry in recent_entries {
+        let key = (entry.timestamp, entry.session_id.clone());
+        if !seen.contains(&key) {
+            seen.insert(key);
+            all_entries.push(entry.clone());
+            new_additions += 1;
+        }
+    }
+
+    // 3. Sort by timestamp ascending
+    all_entries.sort_by(|a, b| a.timestamp.cmp(&b.timestamp));
+
+    // 4. Save back to archive if we added new entries
+    if new_additions > 0 {
+        if let Ok(file) = std::fs::File::create(archive_path) {
+            let mut writer = std::io::BufWriter::new(file);
+            for entry in &all_entries {
+                if let Ok(json) = serde_json::to_string(entry) {
+                    use std::io::Write;
+                    let _ = writeln!(writer, "{}", json);
+                }
+            }
+        }
+    }
+
+    Ok(all_entries)
+}
+
 pub fn group_sessions(
     entries: &[HistoryEntry],
     current_session_id: Option<&str>,

@@ -141,7 +141,11 @@ impl App {
 
         // Load history
         match data::parse_history(&self.config.history_file) {
-            Ok(entries) => {
+            Ok(recent_entries) => {
+                // Sync with archive
+                let entries = data::sync_history_archive(&self.config.archive_file, &recent_entries)
+                    .unwrap_or(recent_entries);
+
                 // Count live messages
                 self.today_messages_live = data::count_today_messages(&entries);
                 self.recent_5h_messages = data::count_recent_messages(&entries, 5);

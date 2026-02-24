@@ -14,7 +14,7 @@ pub use calculations::{
 };
 pub use history::{
     count_projects, count_recent_messages, count_today_messages, group_sessions, parse_history,
-    ProjectStats,
+    sync_history_archive, ProjectStats,
 };
 pub use models::*;
 pub use quota::{fetch_quota, QuotaInfo};
