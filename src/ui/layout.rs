@@ -12,6 +12,11 @@ use crate::ui::widgets;
 pub fn render(frame: &mut Frame, app: &App) {
     let size = frame.size();
 
+    if app.show_model_breakdown {
+        render_model_breakdown_layout(frame, app);
+        return;
+    }
+
     if app.selected_session_id.is_some() {
         render_session_details_layout(frame, app);
         return;
@@ -40,6 +45,23 @@ fn render_session_details_layout(frame: &mut Frame, app: &App) {
 
     render_header(frame, chunks[0], &theme);
     widgets::session_details::render(frame, chunks[1], app, &theme);
+    render_status_bar(frame, chunks[2], app, &theme);
+}
+
+fn render_model_breakdown_layout(frame: &mut Frame, app: &App) {
+    let theme = Theme::from_preset(&app.config.theme);
+
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Length(3), // Header
+            Constraint::Min(10),   // Breakdown
+            Constraint::Length(1), // Status bar
+        ])
+        .split(frame.size());
+
+    render_header(frame, chunks[0], &theme);
+    widgets::model_breakdown::render(frame, chunks[1], app, &theme);
     render_status_bar(frame, chunks[2], app, &theme);
 }
 
@@ -441,7 +463,7 @@ fn render_status_bar(frame: &mut Frame, area: Rect, app: &App, theme: &Theme) {
     };
 
     let help = Span::styled(
-        " │ q: Quit │ r: Refresh │ e: Export │ Tab: Navigate │ ↑↓: Scroll",
+        " │ q: Quit │ r: Refresh │ e: Export │ m: Models │ Tab: Navigate │ ↑↓: Scroll",
         theme.label_style(),
     );
 

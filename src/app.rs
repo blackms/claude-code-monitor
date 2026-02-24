@@ -57,6 +57,7 @@ pub struct App {
     pub export_message: Option<String>,
     pub selected_session_id: Option<String>,
     pub session_details_scroll: usize,
+    pub show_model_breakdown: bool,
     // Live data from history.jsonl
     pub today_messages_live: u64,
     pub recent_5h_messages: u64,
@@ -93,6 +94,7 @@ impl App {
             export_message: None,
             selected_session_id: None,
             session_details_scroll: 0,
+            show_model_breakdown: false,
             today_messages_live: 0,
             recent_5h_messages: 0,
             stats_last_updated: None,
@@ -293,6 +295,13 @@ impl App {
         self.is_live = !self.is_live;
     }
 
+    pub fn toggle_model_breakdown(&mut self) {
+        self.show_model_breakdown = !self.show_model_breakdown;
+        if self.show_model_breakdown {
+            self.selected_session_id = None;
+        }
+    }
+
     pub fn export_data(&mut self) {
         use serde::Serialize;
 
@@ -337,6 +346,25 @@ impl App {
             }
         }
     }
+
+    pub fn cleanup_ghost_sessions(&mut self) {
+        let current_session_file = self.config.claude_dir.join("current_session_id");
+        if !current_session_file.exists() {
+            self.export_message = Some("No active session file found.".to_string());
+            return;
+        }
+
+        match std::fs::remove_file(&current_session_file) {
+            Ok(_) => {
+                self.export_message = Some("Cleared ghost session correctly.".to_string());
+                self.load_data();
+            }
+            Err(e) => {
+                self.last_error = Some(format!("Failed to clear session: {}", e));
+            }
+        }
+    }
+
     pub fn select_current_session(&mut self) {
         if self.focused_panel == Panel::Sessions && self.selected_session < self.sessions.len() {
             let session = &self.sessions[self.selected_session];

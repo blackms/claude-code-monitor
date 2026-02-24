@@ -116,6 +116,10 @@ pub fn handle_key_event(key: KeyEvent, app: &mut crate::app::App) {
         KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => app.quit(),
         KeyCode::Char('r') => app.refresh(),
         KeyCode::Char('l') => app.toggle_live(),
+        KeyCode::Char('c') if !key.modifiers.contains(KeyModifiers::CONTROL) => {
+            app.cleanup_ghost_sessions()
+        }
+        KeyCode::Char('m') => app.toggle_model_breakdown(),
         KeyCode::Char('e') => app.export_data(),
         KeyCode::Enter => app.select_current_session(),
         KeyCode::Tab => app.next_panel(),
