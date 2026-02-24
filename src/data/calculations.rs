@@ -13,16 +13,8 @@ pub struct ModelPricing {
 
 impl ModelPricing {
     pub fn for_model(model_name: &str) -> Self {
-        if model_name.contains("opus-4-5") || model_name.contains("opus-4-6") {
-            // Claude Opus 4.5 / 4.6: $5/$25
-            Self {
-                input: 5.0,
-                output: 25.0,
-                cache_read: 0.50,
-                cache_create: 6.25,
-            }
-        } else if model_name.contains("opus") {
-            // Claude Opus 4 / 4.1: $15/$75
+        if model_name.contains("opus") {
+            // Claude Opus: $15/$75
             Self {
                 input: 15.0,
                 output: 75.0,
@@ -348,12 +340,12 @@ mod tests {
     #[test]
     fn test_model_pricing() {
         let opus46 = ModelPricing::for_model("claude-opus-4-6-20260101");
-        assert_eq!(opus46.input, 5.0);
-        assert_eq!(opus46.output, 25.0);
+        assert_eq!(opus46.input, 15.0);
+        assert_eq!(opus46.output, 75.0);
 
         let opus45 = ModelPricing::for_model("claude-opus-4-5-20251101");
-        assert_eq!(opus45.input, 5.0);
-        assert_eq!(opus45.output, 25.0);
+        assert_eq!(opus45.input, 15.0);
+        assert_eq!(opus45.output, 75.0);
 
         let opus4 = ModelPricing::for_model("claude-opus-4-20250101");
         assert_eq!(opus4.input, 15.0);
@@ -405,7 +397,7 @@ mod tests {
         assert!((opus.cache_savings_per_million() - 13.5).abs() < 0.01);
 
         let opus45 = ModelPricing::for_model("opus-4-5");
-        assert!((opus45.cache_savings_per_million() - 4.5).abs() < 0.01);
+        assert!((opus45.cache_savings_per_million() - 13.5).abs() < 0.01);
 
         let sonnet = ModelPricing::for_model("sonnet");
         assert!((sonnet.cache_savings_per_million() - 2.7).abs() < 0.01);
