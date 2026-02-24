@@ -439,13 +439,6 @@ fn render_enhanced_quota_bar(
     ]);
     frame.render_widget(Paragraph::new(title_line), chunks[0]);
 
-    // Split Line 2 into [Bar, Reset Time]
-    let line2 = Layout::horizontal([
-        Constraint::Min(10),    // The Gauge
-        Constraint::Length(13), // Reset Time e.g. " ↻ 14:00 "
-    ])
-    .split(chunks[1]);
-
     // Progress bar using unicode block gauge
     let gauge = Gauge::default()
         .gauge_style(Style::default().fg(pct_color))
@@ -453,16 +446,28 @@ fn render_enhanced_quota_bar(
         .ratio((percentage / 100.0).min(1.0))
         .label("");
 
-    frame.render_widget(gauge, line2[0]);
+    let bar_area = Rect {
+        x: chunks[1].x,
+        y: chunks[1].y,
+        width: chunks[1].width.saturating_sub(14),
+        height: 1,
+    };
+    frame.render_widget(gauge, bar_area);
 
     // Reset time
     if let Some(reset) = resets_at {
         let reset_str = QuotaInfo::format_reset_time(reset);
+        let reset_area = Rect {
+            x: bar_area.x + bar_area.width + 1,
+            y: chunks[1].y,
+            width: 13,
+            height: 1,
+        };
         let line = Line::from(vec![Span::styled(
-            format!("  ↻ {}", reset_str),
+            format!(" ↻ {}", reset_str),
             theme.label_style(),
         )]);
-        frame.render_widget(Paragraph::new(line), line2[1]);
+        frame.render_widget(Paragraph::new(line), reset_area);
     }
 
     // Depletion status line with background-colored badge
@@ -539,23 +544,32 @@ fn render_extra_usage(frame: &mut Frame, area: Rect, app: &App, theme: &Theme) {
             theme.success
         };
 
-        let line2 =
-            Layout::horizontal([Constraint::Min(10), Constraint::Length(8)]).split(chunks[1]);
-
         let gauge = Gauge::default()
             .gauge_style(Style::default().fg(pct_color))
             .use_unicode(true)
             .ratio((utilization / 100.0).min(1.0))
             .label("");
 
-        frame.render_widget(gauge, line2[0]);
+        let bar_area = Rect {
+            x: chunks[1].x,
+            y: chunks[1].y,
+            width: chunks[1].width.saturating_sub(8),
+            height: 1,
+        };
+        frame.render_widget(gauge, bar_area);
 
         // Percentage
+        let pct_area = Rect {
+            x: bar_area.x + bar_area.width + 1,
+            y: chunks[1].y,
+            width: 7,
+            height: 1,
+        };
         let line = Line::from(vec![Span::styled(
-            format!(" {:>4.0}%", utilization),
+            format!("{:>4.0}%", utilization),
             Style::default().fg(pct_color),
         )]);
-        frame.render_widget(Paragraph::new(line), line2[1]);
+        frame.render_widget(Paragraph::new(line), pct_area);
     } else if used > 0.0 {
         let line = Line::from(vec![Span::styled(
             "(no monthly limit set)",
