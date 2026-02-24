@@ -13,6 +13,7 @@ pub enum Panel {
     CostsSummary,
     UsageQuota,
     CostBreakdown,
+    ProjectCosts,
     ActivityChart,
     HourlyChart,
     Sessions,
@@ -26,6 +27,7 @@ const ALL_PANELS: &[Panel] = &[
     Panel::CostsSummary,
     Panel::UsageQuota,
     Panel::CostBreakdown,
+    Panel::ProjectCosts,
     Panel::ActivityChart,
     Panel::HourlyChart,
     Panel::Sessions,
@@ -145,8 +147,14 @@ impl App {
                 self.recent_5h_messages = data::count_recent_messages(&entries, 5);
                 self.sessions = data::group_sessions(&entries, None);
 
-                // Top projects
-                self.top_projects = data::count_projects(&entries, 5);
+                let total_global_messages = self.stats.as_ref().map(|s| s.total_messages).unwrap_or(0);
+                let total_global_tokens = self.stats.as_ref().map(|s| {
+                    s.model_usage.values().map(|u| u.input_tokens + u.output_tokens + u.cache_read_input_tokens + u.cache_creation_input_tokens).sum::<u64>()
+                }).unwrap_or(0);
+                let total_global_cost = self.total_cost;
+
+                // Load all projects (0 means no truncate) for the Project Costs tab
+                self.top_projects = data::count_projects(&entries, 50, total_global_messages, total_global_tokens, total_global_cost);
 
                 // Calculate trends
                 let daily_activity = self
@@ -414,11 +422,11 @@ mod tests {
     fn test_panel_next_cycles_through_all() {
         let mut panel = Panel::Summary;
         let mut visited = vec![panel];
-        for _ in 0..9 {
+        for _ in 0..(ALL_PANELS.len() - 1) {
             panel = panel.next();
             visited.push(panel);
         }
-        assert_eq!(visited.len(), 10);
+        assert_eq!(visited.len(), ALL_PANELS.len());
         // Full cycle returns to start
         assert_eq!(panel.next(), Panel::Summary);
     }
@@ -427,11 +435,11 @@ mod tests {
     fn test_panel_prev_cycles_through_all() {
         let mut panel = Panel::Summary;
         let mut visited = vec![panel];
-        for _ in 0..9 {
+        for _ in 0..(ALL_PANELS.len() - 1) {
             panel = panel.prev();
             visited.push(panel);
         }
-        assert_eq!(visited.len(), 10);
+        assert_eq!(visited.len(), ALL_PANELS.len());
         // Full cycle returns to start
         assert_eq!(panel.prev(), Panel::Summary);
     }

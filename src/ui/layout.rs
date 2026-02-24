@@ -22,6 +22,11 @@ pub fn render(frame: &mut Frame, app: &App) {
         return;
     }
 
+    if app.focused_panel == Panel::ProjectCosts {
+        render_project_costs_layout(frame, app);
+        return;
+    }
+
     if size.height < 35 {
         render_compact_layout(frame, app);
     } else if size.height < 50 {
@@ -62,6 +67,23 @@ fn render_model_breakdown_layout(frame: &mut Frame, app: &App) {
 
     render_header(frame, chunks[0], &theme);
     widgets::model_breakdown::render(frame, chunks[1], app, &theme);
+    render_status_bar(frame, chunks[2], app, &theme);
+}
+
+fn render_project_costs_layout(frame: &mut Frame, app: &App) {
+    let theme = Theme::from_preset(&app.config.theme);
+
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Length(3), // Header
+            Constraint::Min(10),   // Breakdown
+            Constraint::Length(1), // Status bar
+        ])
+        .split(frame.size());
+
+    render_header(frame, chunks[0], &theme);
+    widgets::project_costs::render(frame, chunks[1], app, &theme, true);
     render_status_bar(frame, chunks[2], app, &theme);
 }
 

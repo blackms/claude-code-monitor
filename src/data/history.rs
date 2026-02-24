@@ -106,10 +106,18 @@ pub struct ProjectStats {
     pub name: String,
     pub path: String,
     pub message_count: u64,
+    pub estimated_tokens: u64,
+    pub estimated_cost: f64,
 }
 
-/// Count messages per project and return top N
-pub fn count_projects(entries: &[HistoryEntry], top_n: usize) -> Vec<ProjectStats> {
+/// Count messages per project and return top N, populating proportional estimates
+pub fn count_projects(
+    entries: &[HistoryEntry],
+    top_n: usize,
+    total_global_messages: u64,
+    total_global_tokens: u64,
+    total_global_cost: f64,
+) -> Vec<ProjectStats> {
     let mut project_counts: HashMap<String, (String, u64)> = HashMap::new();
 
     for entry in entries {
@@ -122,15 +130,27 @@ pub fn count_projects(entries: &[HistoryEntry], top_n: usize) -> Vec<ProjectStat
 
     let mut projects: Vec<ProjectStats> = project_counts
         .into_iter()
-        .map(|(path, (name, count))| ProjectStats {
-            name,
-            path,
-            message_count: count,
+        .map(|(path, (name, count))| {
+            let ratio = if total_global_messages > 0 {
+                count as f64 / total_global_messages as f64
+            } else {
+                0.0
+            };
+
+            ProjectStats {
+                name,
+                path,
+                message_count: count,
+                estimated_tokens: (total_global_tokens as f64 * ratio) as u64,
+                estimated_cost: total_global_cost * ratio,
+            }
         })
         .collect();
 
     projects.sort_by(|a, b| b.message_count.cmp(&a.message_count));
-    projects.truncate(top_n);
+    if top_n > 0 {
+        projects.truncate(top_n);
+    }
     projects
 }
 

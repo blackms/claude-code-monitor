@@ -2,6 +2,7 @@ pub mod activity_chart;
 pub mod cost_display;
 pub mod hourly_chart;
 pub mod model_breakdown;
+pub mod project_costs;
 pub mod session_details;
 pub mod session_list;
 pub mod statistics;
