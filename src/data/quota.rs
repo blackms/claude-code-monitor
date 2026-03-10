@@ -1,6 +1,11 @@
 use anyhow::{anyhow, Result};
 use serde::Deserialize;
 use std::process::Command;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::time::{SystemTime, UNIX_EPOCH};
+
+static LAST_FETCH_TIME: AtomicU64 = AtomicU64::new(0);
+const DEBOUNCE_SECS: u64 = 60; // Wait at least 60 seconds even if forced
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct Credentials {
@@ -105,6 +110,19 @@ fn read_credentials() -> Result<Credentials> {
 
 /// Fetch usage quota from Anthropic API
 pub fn fetch_quota() -> Result<QuotaInfo> {
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+    let last = LAST_FETCH_TIME.load(Ordering::Relaxed);
+
+    if now - last < DEBOUNCE_SECS {
+        return Err(anyhow!("DEBOUNCED"));
+    }
+
+    // Update time BEFORE the request so failures also get debounced
+    LAST_FETCH_TIME.store(now, Ordering::Relaxed);
+
     let creds = read_credentials()?;
 
     let client = reqwest::blocking::Client::new();

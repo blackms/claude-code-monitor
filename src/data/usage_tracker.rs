@@ -82,7 +82,7 @@ impl UsageTracker {
             })
             .collect();
 
-        if data.len() < 5 {
+        if data.len() < 3 {
             return None;
         }
 
@@ -174,7 +174,7 @@ impl UsageTracker {
 
     /// Check if we have enough samples for reliable projections
     pub fn has_enough_data(&self) -> bool {
-        self.samples.len() >= 10
+        self.samples.len() >= 3
     }
 
     /// Get a reference to all samples (for persistence)

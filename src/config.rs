@@ -19,7 +19,7 @@ pub enum ThemePreset {
 pub struct ConfigFile {
     /// UI refresh rate in milliseconds (default: 250)
     pub refresh_rate_ms: Option<u64>,
-    /// Quota polling interval in seconds (default: 2)
+    /// Quota polling interval in seconds (default: 300)
     pub quota_refresh_secs: Option<u64>,
     /// Stats/history polling interval in seconds (default: 10)
     pub data_refresh_secs: Option<u64>,
@@ -65,7 +65,7 @@ impl Config {
             claude_dir,
             theme: config_file.theme.unwrap_or_default(),
             refresh_rate: Duration::from_millis(config_file.refresh_rate_ms.unwrap_or(250)),
-            quota_refresh_rate: Duration::from_secs(config_file.quota_refresh_secs.unwrap_or(2)),
+            quota_refresh_rate: Duration::from_secs(config_file.quota_refresh_secs.unwrap_or(300)),
             data_refresh_rate: Duration::from_secs(config_file.data_refresh_secs.unwrap_or(10)),
         })
     }
@@ -111,7 +111,7 @@ mod tests {
     fn test_config_defaults() {
         let config = Config::new().unwrap();
         assert_eq!(config.refresh_rate, Duration::from_millis(250));
-        assert_eq!(config.quota_refresh_rate, Duration::from_secs(2));
+        assert_eq!(config.quota_refresh_rate, Duration::from_secs(300));
         assert_eq!(config.data_refresh_rate, Duration::from_secs(10));
     }
 

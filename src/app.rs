@@ -183,7 +183,10 @@ impl App {
         match data::fetch_quota() {
             Ok(quota) => self.process_quota(quota),
             Err(e) => {
-                self.quota.last_error = Some(e.to_string());
+                let err_msg = e.to_string();
+                if err_msg != "DEBOUNCED" {
+                    self.quota.last_error = Some(err_msg);
+                }
             }
         }
     }
@@ -193,7 +196,9 @@ impl App {
         match result {
             Ok(quota) => self.process_quota(quota),
             Err(e) => {
-                self.quota.last_error = Some(e);
+                if e != "DEBOUNCED" {
+                    self.quota.last_error = Some(e);
+                }
             }
         }
     }
@@ -204,8 +209,8 @@ impl App {
         self.usage_tracker
             .add_sample(quota.session_usage, quota.week_usage);
 
-        // Save samples periodically (every 30 samples = ~1 minute at 2s intervals)
-        if self.usage_tracker.sample_count() % 30 == 0 {
+        // Save samples periodically (every 3 samples = ~15 minutes at 5m intervals)
+        if self.usage_tracker.sample_count() % 3 == 0 {
             let _ = self.usage_tracker.save_to_file(&self.config.samples_file);
         }
 
