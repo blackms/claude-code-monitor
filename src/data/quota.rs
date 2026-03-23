@@ -40,7 +40,7 @@ pub struct UsageResponse {
 #[derive(Debug, Clone, Deserialize)]
 pub struct UsageWindow {
     pub utilization: f64,
-    pub resets_at: String,
+    pub resets_at: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -150,17 +150,17 @@ pub fn fetch_quota() -> Result<QuotaInfo> {
 
     if let Some(five_hour) = usage.five_hour {
         quota.session_usage = Some(five_hour.utilization);
-        quota.session_resets_at = Some(five_hour.resets_at);
+        quota.session_resets_at = five_hour.resets_at;
     }
 
     if let Some(seven_day) = usage.seven_day {
         quota.week_usage = Some(seven_day.utilization);
-        quota.week_resets_at = Some(seven_day.resets_at);
+        quota.week_resets_at = seven_day.resets_at;
     }
 
     if let Some(sonnet) = usage.seven_day_sonnet {
         quota.sonnet_usage = Some(sonnet.utilization);
-        quota.sonnet_resets_at = Some(sonnet.resets_at);
+        quota.sonnet_resets_at = sonnet.resets_at;
     }
 
     // Extra usage (pay-as-you-go)
