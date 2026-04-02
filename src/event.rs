@@ -114,6 +114,22 @@ impl EventHandler {
 }
 
 pub fn handle_key_event(key: KeyEvent, app: &mut crate::app::App) {
+    if app.is_filtering_projects {
+        match key.code {
+            KeyCode::Esc | KeyCode::Enter => {
+                app.is_filtering_projects = false;
+            }
+            KeyCode::Backspace => {
+                app.project_search_query.pop();
+            }
+            KeyCode::Char(c) => {
+                app.project_search_query.push(c);
+            }
+            _ => {}
+        }
+        return;
+    }
+
     match key.code {
         KeyCode::Char('q') | KeyCode::Esc => {
             if !app.close_session_details() {
@@ -128,11 +144,22 @@ pub fn handle_key_event(key: KeyEvent, app: &mut crate::app::App) {
         KeyCode::Char('m') => app.toggle_model_breakdown(),
         KeyCode::Char('p') => app.toggle_project_costs(),
         KeyCode::Char('e') => app.export_data(),
+        KeyCode::Char('s') => app.toggle_project_sort(),
+        KeyCode::Char('f') => {
+            if app.current_view == crate::app::AppView::Projects {
+                app.is_filtering_projects = true;
+                if key.modifiers.contains(KeyModifiers::CONTROL) {
+                    app.project_search_query.clear();
+                }
+            }
+        }
         KeyCode::Enter => app.select_current_session(),
         KeyCode::Tab => app.next_panel(),
         KeyCode::BackTab => app.prev_panel(),
         KeyCode::Up | KeyCode::Char('k') => app.scroll_up(),
         KeyCode::Down | KeyCode::Char('j') => app.scroll_down(),
+        KeyCode::Left => app.prev_view(),
+        KeyCode::Right => app.next_view(),
         _ => {}
     }
 }

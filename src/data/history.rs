@@ -119,11 +119,18 @@ pub fn group_sessions(
 }
 
 fn extract_project_name(path: &str) -> String {
-    Path::new(path)
+    let name = Path::new(path)
         .file_name()
         .and_then(|s| s.to_str())
         .unwrap_or("Unknown")
-        .to_string()
+        .to_string();
+
+    match name.as_str() {
+        "massima-energia" | "massima energia" | "crm-wfa" | "crm-wfa-fe" | "Massima Energia" => {
+            "Massima Energia".to_string()
+        }
+        _ => name,
+    }
 }
 
 /// Count messages from today based on history entries
@@ -156,6 +163,7 @@ pub struct ProjectStats {
     pub message_count: u64,
     pub estimated_tokens: u64,
     pub estimated_cost: f64,
+    pub last_timestamp: u64,
 }
 
 /// Count messages per project and return top N, populating proportional estimates
@@ -166,19 +174,30 @@ pub fn count_projects(
     total_global_cost: f64,
 ) -> Vec<ProjectStats> {
     let total_history_messages = entries.len();
-    let mut project_counts: HashMap<String, (String, u64)> = HashMap::new();
+    let mut project_counts: HashMap<String, (String, u64, u64)> = HashMap::new();
 
     for entry in entries {
         let project_name = extract_project_name(&entry.project);
+
+        // Hide specific projects from the dashboard
+        if project_name == "world_data" || project_name == "Current" {
+            continue;
+        }
+
         project_counts
-            .entry(entry.project.clone())
-            .and_modify(|(_, count)| *count += 1)
-            .or_insert((project_name, 1));
+            .entry(project_name.clone())
+            .and_modify(|(_, count, last_ts)| {
+                *count += 1;
+                if entry.timestamp > *last_ts {
+                    *last_ts = entry.timestamp;
+                }
+            })
+            .or_insert((entry.project.clone(), 1, entry.timestamp));
     }
 
     let mut projects: Vec<ProjectStats> = project_counts
         .into_iter()
-        .map(|(path, (name, count))| {
+        .map(|(name, (path, count, last_ts))| {
             let ratio = if total_history_messages > 0 {
                 count as f64 / total_history_messages as f64
             } else {
@@ -191,6 +210,7 @@ pub fn count_projects(
                 message_count: count,
                 estimated_tokens: (total_global_tokens as f64 * ratio) as u64,
                 estimated_cost: total_global_cost * ratio,
+                last_timestamp: last_ts,
             }
         })
         .collect();

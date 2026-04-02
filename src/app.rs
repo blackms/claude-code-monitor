@@ -5,6 +5,38 @@ use crate::data::{
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AppView {
+    Dashboard,
+    Projects,
+    Models,
+}
+
+impl AppView {
+    pub fn next(self) -> Self {
+        match self {
+            Self::Dashboard => Self::Projects,
+            Self::Projects => Self::Models,
+            Self::Models => Self::Dashboard,
+        }
+    }
+
+    pub fn prev(self) -> Self {
+        match self {
+            Self::Dashboard => Self::Models,
+            Self::Projects => Self::Dashboard,
+            Self::Models => Self::Projects,
+        }
+    }
+}
+
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ProjectSort {
+    Cost,
+    Recent,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Panel {
     Summary,
     TokenUsage,
@@ -57,8 +89,11 @@ pub struct App {
     pub export_message: Option<String>,
     pub selected_session_id: Option<String>,
     pub session_details_scroll: usize,
-    pub show_model_breakdown: bool,
-    pub show_project_costs: bool,
+    pub current_view: AppView,
+    pub project_sort: ProjectSort,
+    pub is_filtering_projects: bool,
+    pub project_search_query: String,
+
     // Live data from history.jsonl
     pub today_messages_live: u64,
     pub recent_5h_messages: u64,
@@ -95,8 +130,11 @@ impl App {
             export_message: None,
             selected_session_id: None,
             session_details_scroll: 0,
-            show_model_breakdown: false,
-            show_project_costs: false,
+            current_view: AppView::Dashboard,
+            project_sort: ProjectSort::Cost,
+            is_filtering_projects: false,
+            project_search_query: String::new(),
+
             today_messages_live: 0,
             recent_5h_messages: 0,
             stats_last_updated: None,
@@ -157,7 +195,8 @@ impl App {
                 let total_global_cost = self.total_cost;
 
                 // Load all projects (0 means no truncate) for the Project Costs tab
-                self.top_projects = data::count_projects(&entries, 50, total_global_tokens, total_global_cost);
+                self.top_projects = data::count_projects(&entries, 0, total_global_tokens, total_global_cost);
+
 
                 // Calculate trends
                 let daily_activity = self
@@ -307,19 +346,39 @@ impl App {
     }
 
     pub fn toggle_model_breakdown(&mut self) {
-        self.show_model_breakdown = !self.show_model_breakdown;
-        if self.show_model_breakdown {
+        if self.current_view == AppView::Models {
+            self.current_view = AppView::Dashboard;
+        } else {
+            self.current_view = AppView::Models;
             self.selected_session_id = None;
-            self.show_project_costs = false;
         }
     }
 
     pub fn toggle_project_costs(&mut self) {
-        self.show_project_costs = !self.show_project_costs;
-        if self.show_project_costs {
+        if self.current_view == AppView::Projects {
+            self.current_view = AppView::Dashboard;
+        } else {
+            self.current_view = AppView::Projects;
             self.selected_session_id = None;
-            self.show_model_breakdown = false;
         }
+    }
+
+    pub fn next_view(&mut self) {
+        self.current_view = self.current_view.next();
+        self.selected_session_id = None;
+    }
+
+    pub fn prev_view(&mut self) {
+        self.current_view = self.current_view.prev();
+        self.selected_session_id = None;
+    }
+
+
+    pub fn toggle_project_sort(&mut self) {
+        self.project_sort = match self.project_sort {
+            ProjectSort::Cost => ProjectSort::Recent,
+            ProjectSort::Recent => ProjectSort::Cost,
+        };
     }
 
     pub fn export_data(&mut self) {

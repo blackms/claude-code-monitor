@@ -16,8 +16,21 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App, theme: &Theme, focused: 
         theme.border_style()
     };
 
+    let sort_label = match app.project_sort {
+        crate::app::ProjectSort::Cost => "COST",
+        crate::app::ProjectSort::Recent => "RECENT",
+    };
+
+    let filter_text = if app.is_filtering_projects {
+        format!(" (Filter: {}_) ", app.project_search_query)
+    } else if !app.project_search_query.is_empty() {
+        format!(" (Filter: {}) ", app.project_search_query)
+    } else {
+        String::new()
+    };
+
     let block = Block::default()
-        .title(" PROJECT COSTS DASHBOARD ")
+        .title(format!(" PROJECT COSTS DASHBOARD (Sort: {}){} ", sort_label, filter_text))
         .title_style(theme.title_style())
         .borders(Borders::ALL)
         .border_style(border_style);
@@ -47,9 +60,21 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App, theme: &Theme, focused: 
     
     let header = Row::new(header_cells).height(1).bottom_margin(1);
 
-    // Filter projects that have actual token limits or messages, and sort by cost descending
     let mut sorted_projects = app.top_projects.clone();
-    sorted_projects.sort_by(|a, b| b.estimated_cost.partial_cmp(&a.estimated_cost).unwrap_or(std::cmp::Ordering::Equal));
+
+    if !app.project_search_query.is_empty() {
+        let query = app.project_search_query.to_lowercase();
+        sorted_projects.retain(|p| p.name.to_lowercase().contains(&query));
+    }
+
+    match app.project_sort {
+        crate::app::ProjectSort::Cost => {
+            sorted_projects.sort_by(|a, b| b.estimated_cost.partial_cmp(&a.estimated_cost).unwrap_or(std::cmp::Ordering::Equal));
+        }
+        crate::app::ProjectSort::Recent => {
+            sorted_projects.sort_by(|a, b| b.last_timestamp.cmp(&a.last_timestamp));
+        }
+    }
 
     for project in sorted_projects {
         let row = Row::new(vec![

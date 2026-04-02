@@ -1,18 +1,18 @@
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     text::{Line, Span},
-    widgets::{Block, Borders, Paragraph},
+    widgets::{Block, Borders, Paragraph, Tabs},
     Frame,
 };
 
-use crate::app::{App, Panel};
+use crate::app::{App, AppView, Panel};
 use crate::ui::theme::Theme;
 use crate::ui::widgets;
 
 pub fn render(frame: &mut Frame, app: &App) {
     let size = frame.size();
 
-    if app.show_model_breakdown {
+    if app.current_view == AppView::Models {
         render_model_breakdown_layout(frame, app);
         return;
     }
@@ -22,7 +22,7 @@ pub fn render(frame: &mut Frame, app: &App) {
         return;
     }
 
-    if app.show_project_costs {
+    if app.current_view == AppView::Projects {
         render_project_costs_layout(frame, app);
         return;
     }
@@ -48,7 +48,7 @@ fn render_session_details_layout(frame: &mut Frame, app: &App) {
         ])
         .split(frame.size());
 
-    render_header(frame, chunks[0], &theme);
+    render_header(frame, chunks[0], app, &theme);
     widgets::session_details::render(frame, chunks[1], app, &theme);
     render_status_bar(frame, chunks[2], app, &theme);
 }
@@ -65,7 +65,7 @@ fn render_model_breakdown_layout(frame: &mut Frame, app: &App) {
         ])
         .split(frame.size());
 
-    render_header(frame, chunks[0], &theme);
+    render_header(frame, chunks[0], app, &theme);
     widgets::model_breakdown::render(frame, chunks[1], app, &theme);
     render_status_bar(frame, chunks[2], app, &theme);
 }
@@ -82,7 +82,7 @@ fn render_project_costs_layout(frame: &mut Frame, app: &App) {
         ])
         .split(frame.size());
 
-    render_header(frame, chunks[0], &theme);
+    render_header(frame, chunks[0], app, &theme);
     widgets::project_costs::render(frame, chunks[1], app, &theme, true);
     render_status_bar(frame, chunks[2], app, &theme);
 }
@@ -101,7 +101,7 @@ fn render_compact_layout(frame: &mut Frame, app: &App) {
         ])
         .split(frame.size());
 
-    render_header(frame, chunks[0], &theme);
+    render_header(frame, chunks[0], app, &theme);
 
     // Split main area horizontally
     let main_cols = Layout::default()
@@ -150,7 +150,7 @@ fn render_medium_layout(frame: &mut Frame, app: &App) {
         ])
         .split(frame.size());
 
-    render_header(frame, chunks[0], &theme);
+    render_header(frame, chunks[0], app, &theme);
     render_main_content(frame, chunks[1], app, &theme);
     widgets::cost_display::render_usage_quota(
         frame,
@@ -193,7 +193,7 @@ fn render_full_layout(frame: &mut Frame, app: &App) {
         ])
         .split(frame.size());
 
-    render_header(frame, chunks[0], &theme);
+    render_header(frame, chunks[0], app, &theme);
     render_main_content_full(frame, chunks[1], app, &theme);
     widgets::cost_display::render_usage_quota(
         frame,
@@ -235,18 +235,35 @@ fn render_full_layout(frame: &mut Frame, app: &App) {
     render_status_bar(frame, chunks[6], app, &theme);
 }
 
-fn render_header(frame: &mut Frame, area: Rect, theme: &Theme) {
-    let title = Line::from(vec![Span::styled(
-        "                    Claude Code Monitor v0.3.0                    ",
-        theme.title_style(),
-    )]);
+fn render_header(frame: &mut Frame, area: Rect, app: &App, theme: &Theme) {
+    let titles = vec![
+        Line::from(" Dashboard "),
+        Line::from(" Projects "),
+        Line::from(" Models "),
+    ];
 
-    let block = Block::default()
-        .borders(Borders::ALL)
-        .border_style(theme.border_style());
+    let active_idx = match app.current_view {
+        AppView::Dashboard => 0,
+        AppView::Projects => 1,
+        AppView::Models => 2,
+    };
 
-    let paragraph = Paragraph::new(title).block(block).centered();
-    frame.render_widget(paragraph, area);
+    let tabs = Tabs::new(titles)
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .border_style(theme.border_style())
+                .title(Span::styled(
+                    " Claude Code Monitor v0.3.0 ",
+                    theme.title_style(),
+                ))
+                .title_alignment(ratatui::layout::Alignment::Center),
+        )
+        .highlight_style(theme.value_style())
+        .select(active_idx)
+        .divider(Span::styled(" │ ", theme.border_style()));
+
+    frame.render_widget(tabs, area);
 }
 
 fn render_main_content(frame: &mut Frame, area: Rect, app: &App, theme: &Theme) {
@@ -485,7 +502,7 @@ fn render_status_bar(frame: &mut Frame, area: Rect, app: &App, theme: &Theme) {
     };
 
     let help = Span::styled(
-        " │ q: Quit │ r: Refresh │ e: Export │ m: Models │ p: Projects │ Tab: Navigate │ ↑↓: Scroll",
+        " │ q: Quit │ r: Refresh │ e: Export │ Tab: Navigate │ ←/→: View",
         theme.label_style(),
     );
 
