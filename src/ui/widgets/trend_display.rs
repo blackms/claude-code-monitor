@@ -138,7 +138,17 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App, theme: &Theme, focused: 
     let line = Line::from(vec![Span::styled("7-day trend:", theme.label_style())]);
     frame.render_widget(Paragraph::new(line), chunks[9]);
 
-    let sparkline_str = render_sparkline(&trend_data.sparkline);
-    let line = Line::from(vec![Span::styled(sparkline_str, theme.sparkline_style())]);
+    let (sparkline_str, spark_style) = if trend_data.sparkline.is_empty() {
+        (
+            "▁▁▁▁▁▁▁".to_string(),
+            theme.label_style(),
+        )
+    } else {
+        (
+            render_sparkline(&trend_data.sparkline),
+            theme.sparkline_style(),
+        )
+    };
+    let line = Line::from(vec![Span::styled(sparkline_str, spark_style)]);
     frame.render_widget(Paragraph::new(line), chunks[10]);
 }

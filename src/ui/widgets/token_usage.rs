@@ -58,24 +58,46 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App, theme: &Theme, focused: 
 
     let chunks = Layout::vertical(constraints).split(inner);
 
-    let bar_width = inner.width.saturating_sub(24) as usize;
+    let w = inner.width as usize;
+    let suffix_w = 5usize; // " nn%"
+    let min_bar = 4usize;
+    let label_cap = w
+        .saturating_sub(min_bar + 1 + suffix_w)
+        .min(14)
+        .max(3);
+    let bar_width = w.saturating_sub(label_cap + 1 + suffix_w).max(min_bar);
 
     for (i, (model_name, total)) in model_totals.iter().take(5).enumerate() {
         let percentage = (*total as f64 / total_all as f64 * 100.0) as u16;
         let filled = (percentage as usize * bar_width) / 100;
 
         let display_name = shorten_model_name(model_name);
+        let label: String = if display_name.chars().count() > label_cap {
+            display_name
+                .chars()
+                .take(label_cap.saturating_sub(1))
+                .chain(std::iter::once('…'))
+                .collect()
+        } else {
+            format!("{:<label_cap$}", display_name, label_cap = label_cap)
+        };
         let color = theme.model_color(model_name);
 
-        // Create bar
-        let bar: String = "█".repeat(filled) + &" ".repeat(bar_width.saturating_sub(filled));
+        let bar_filled = "█".repeat(filled);
+        let bar_empty = "░".repeat(bar_width.saturating_sub(filled));
 
-        let line = Line::from(vec![
-            Span::styled(format!("{:<14} ", display_name), theme.label_style()),
-            Span::styled(bar, ratatui::style::Style::default().fg(color)),
-            Span::styled(format!(" {:>3}%", percentage), theme.value_style()),
-        ]);
+        let mut spans = vec![
+            Span::styled(format!("{} ", label), theme.label_style()),
+            Span::styled(bar_filled, ratatui::style::Style::default().fg(color)),
+        ];
+        if !bar_empty.is_empty() {
+            spans.push(Span::styled(bar_empty, theme.bar_track_style()));
+        }
+        spans.push(Span::styled(
+            format!(" {:>3}%", percentage),
+            theme.value_style(),
+        ));
 
-        frame.render_widget(Paragraph::new(line), chunks[i]);
+        frame.render_widget(Paragraph::new(Line::from(spans)), chunks[i]);
     }
 }

@@ -17,7 +17,7 @@ pub use history::{
     sync_history_archive, ProjectStats,
 };
 pub use models::*;
-pub use quota::{fetch_quota, QuotaInfo};
+pub use quota::{fetch_quota, fetch_quota_force, QuotaInfo};
 pub use stats::parse_stats_cache;
 pub use trends::{render_sparkline, Trend, TrendData};
 pub use usage_tracker::{format_hours, DepletionStatus, UsageTracker};

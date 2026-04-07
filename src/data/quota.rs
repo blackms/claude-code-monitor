@@ -2,10 +2,19 @@ use anyhow::{anyhow, Result};
 use serde::Deserialize;
 use std::process::Command;
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Mutex;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-static LAST_FETCH_TIME: AtomicU64 = AtomicU64::new(0);
-const DEBOUNCE_SECS: u64 = 60; // Wait at least 60 seconds even if forced
+/// Earliest UNIX time (seconds) when a quota fetch is allowed again.
+static NEXT_FETCH_ALLOWED: AtomicU64 = AtomicU64::new(0);
+static QUOTA_FETCH_LOCK: Mutex<()> = Mutex::new(());
+
+/// Minimum spacing after a successful fetch (Anthropic rate limits OAuth usage).
+const MIN_INTERVAL_AFTER_SUCCESS_SECS: u64 = 60;
+/// Backoff after non-429 HTTP errors.
+const BACKOFF_AFTER_ERROR_SECS: u64 = 90;
+/// Minimum backoff after 429 when Retry-After is missing or too small.
+const MIN_BACKOFF_429_SECS: u64 = 300;
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct Credentials {
@@ -108,20 +117,51 @@ fn read_credentials() -> Result<Credentials> {
     Ok(creds)
 }
 
-/// Fetch usage quota from Anthropic API
+fn parse_retry_after(response: &reqwest::blocking::Response) -> Option<u64> {
+    let header = response.headers().get("retry-after")?.to_str().ok()?;
+    let header = header.trim();
+    if let Ok(secs) = header.parse::<u64>() {
+        return Some(secs);
+    }
+    if let Ok(dt) = chrono::DateTime::parse_from_rfc2822(header) {
+        let now = chrono::Utc::now().timestamp();
+        let wait = dt.timestamp() - now;
+        return Some(wait.max(0) as u64);
+    }
+    None
+}
+
+fn schedule_next_fetch_after(now: u64, wait_secs: u64) {
+    NEXT_FETCH_ALLOWED.store(now + wait_secs, Ordering::Relaxed);
+}
+
+/// Fetch usage quota from Anthropic API (respects rate-limit spacing and 429 backoff).
 pub fn fetch_quota() -> Result<QuotaInfo> {
+    fetch_quota_inner(false)
+}
+
+/// Same as [`fetch_quota`] but ignores the minimum-spacing debounce (still serializes on a mutex
+/// and still applies 429 backoff after a failed response). Used for manual refresh (`r`).
+pub fn fetch_quota_force() -> Result<QuotaInfo> {
+    fetch_quota_inner(true)
+}
+
+fn fetch_quota_inner(force: bool) -> Result<QuotaInfo> {
+    let _guard = QUOTA_FETCH_LOCK
+        .lock()
+        .map_err(|_| anyhow!("quota fetch lock poisoned"))?;
+
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
         .as_secs();
-    let last = LAST_FETCH_TIME.load(Ordering::Relaxed);
 
-    if now - last < DEBOUNCE_SECS {
-        return Err(anyhow!("DEBOUNCED"));
+    if !force {
+        let next = NEXT_FETCH_ALLOWED.load(Ordering::Relaxed);
+        if now < next {
+            return Err(anyhow!("DEBOUNCED"));
+        }
     }
-
-    // Update time BEFORE the request so failures also get debounced
-    LAST_FETCH_TIME.store(now, Ordering::Relaxed);
 
     let creds = read_credentials()?;
 
@@ -137,9 +177,21 @@ pub fn fetch_quota() -> Result<QuotaInfo> {
         .timeout(std::time::Duration::from_secs(10))
         .send()?;
 
-    if !response.status().is_success() {
-        return Err(anyhow!("API error: {}", response.status()));
+    let status = response.status();
+
+    if status == reqwest::StatusCode::TOO_MANY_REQUESTS {
+        let retry = parse_retry_after(&response).unwrap_or(MIN_BACKOFF_429_SECS);
+        let wait = retry.max(MIN_BACKOFF_429_SECS);
+        schedule_next_fetch_after(now, wait);
+        return Err(anyhow!("API error: {} (retry in {}s)", status, wait));
     }
+
+    if !status.is_success() {
+        schedule_next_fetch_after(now, BACKOFF_AFTER_ERROR_SECS);
+        return Err(anyhow!("API error: {}", status));
+    }
+
+    schedule_next_fetch_after(now, MIN_INTERVAL_AFTER_SUCCESS_SECS);
 
     let usage: UsageResponse = response.json()?;
 

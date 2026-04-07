@@ -27,8 +27,9 @@ impl Theme {
                 warning: Color::Yellow,
                 error: Color::Red,
                 text: Color::White,
-                text_muted: Color::DarkGray,
-                border: Color::DarkGray,
+                // DarkGray is invisible on dark terminal backgrounds (labels look “missing”).
+                text_muted: Color::Rgb(158, 158, 170),
+                border: Color::Rgb(110, 110, 110),
                 border_focused: Color::Cyan,
                 background: Color::Reset,
             },
@@ -40,7 +41,7 @@ impl Theme {
                 warning: Color::Rgb(249, 226, 175),        // yellow
                 error: Color::Rgb(243, 139, 168),          // red
                 text: Color::Rgb(205, 214, 244),           // text
-                text_muted: Color::Rgb(166, 173, 200),     // subtext0
+                text_muted: Color::Rgb(186, 194, 222),     // subtext1 (was subtext0: too dim in some UIs)
                 border: Color::Rgb(88, 91, 112),           // surface2
                 border_focused: Color::Rgb(137, 180, 250), // blue
                 background: Color::Rgb(30, 30, 46),        // base
@@ -53,7 +54,7 @@ impl Theme {
                 warning: Color::Rgb(241, 250, 140),        // yellow
                 error: Color::Rgb(255, 85, 85),            // red
                 text: Color::Rgb(248, 248, 242),           // foreground
-                text_muted: Color::Rgb(98, 114, 164),      // comment
+                text_muted: Color::Rgb(139, 143, 185),     // brighter than comment for labels
                 border: Color::Rgb(68, 71, 90),            // current line
                 border_focused: Color::Rgb(139, 233, 253), // cyan
                 background: Color::Rgb(40, 42, 54),        // background
@@ -66,7 +67,7 @@ impl Theme {
                 warning: Color::Rgb(235, 203, 139),        // aurora 13
                 error: Color::Rgb(191, 97, 106),           // aurora 11
                 text: Color::Rgb(216, 222, 233),           // snow storm 4
-                text_muted: Color::Rgb(76, 86, 106),       // polar night 3
+                text_muted: Color::Rgb(129, 161, 193),       // frost (readable on polar night 0)
                 border: Color::Rgb(76, 86, 106),           // polar night 3
                 border_focused: Color::Rgb(136, 192, 208), // frost 8
                 background: Color::Rgb(46, 52, 64),        // polar night 0
@@ -97,6 +98,11 @@ impl Theme {
     }
 
     pub fn label_style(&self) -> Style {
+        Style::default().fg(self.text_muted)
+    }
+
+    /// Dim track for horizontal bars (empty portion), still visible on dark backgrounds.
+    pub fn bar_track_style(&self) -> Style {
         Style::default().fg(self.text_muted)
     }
 
@@ -140,7 +146,9 @@ impl Theme {
 
     /// Style for sparkline bars
     pub fn sparkline_style(&self) -> Style {
-        Style::default().fg(self.primary)
+        Style::default()
+            .fg(self.primary)
+            .add_modifier(Modifier::BOLD)
     }
 
     #[allow(dead_code)]

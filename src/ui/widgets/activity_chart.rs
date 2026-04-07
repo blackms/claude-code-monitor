@@ -55,7 +55,10 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App, theme: &Theme, focused: 
     // Create sparkline
     let mut sparkline = String::new();
     for &value in &values {
-        let normalized = ((value - min_value) as f64 / range as f64 * 7.0).round() as usize;
+        let mut normalized = ((value - min_value) as f64 / range as f64 * 7.0).round() as usize;
+        if value > 0 {
+            normalized = normalized.max(1);
+        }
         sparkline.push(SPARKLINE_CHARS[normalized.min(7)]);
         sparkline.push(' ');
     }
@@ -73,7 +76,7 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App, theme: &Theme, focused: 
         })
         .collect();
 
-    let line = Line::from(vec![Span::styled(sparkline, theme.highlight_style())]);
+    let line = Line::from(vec![Span::styled(sparkline, theme.sparkline_style())]);
     frame.render_widget(Paragraph::new(line), inner);
 
     // Show dates if there's room

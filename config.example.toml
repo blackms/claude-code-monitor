@@ -1,0 +1,13 @@
+# Copia in: ~/.config/claude-code-monitor/config.toml
+#
+# quota_refresh_secs — intervallo tra un poll e l’altro dell’API usage OAuth (Anthropic).
+# Valori sotto 300 secondi vengono alzati automaticamente a 300 per limitare i 429.
+# Per essere ancora più conservativi, usa 600 o 900.
+
+quota_refresh_secs = 600
+
+refresh_rate_ms = 250
+data_refresh_secs = 10
+
+# theme = "default"   # default | catppuccin | dracula | nord
+# claude_dir = "~/.claude"

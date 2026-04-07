@@ -327,8 +327,9 @@ pub fn render_usage_quota(frame: &mut Frame, area: Rect, app: &App, theme: &Them
         .split(inner);
 
         if let Some(ref err) = app.quota.last_error {
+            let max_err = (inner.width as usize).saturating_sub(2).clamp(32, 96);
             let line = Line::from(vec![Span::styled(
-                format!("Error: {}", truncate_str(err, 30)),
+                format!("Error: {}", truncate_str(err, max_err)),
                 theme.warning_style(),
             )]);
             frame.render_widget(Paragraph::new(line), chunks[0]);

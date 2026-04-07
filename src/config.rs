@@ -3,6 +3,16 @@ use std::time::Duration;
 
 use serde::Deserialize;
 
+/// Default interval between background quota API polls.
+const DEFAULT_QUOTA_REFRESH_SECS: u64 = 300;
+/// Anthropic OAuth usage is rate-limited; values below this are clamped to reduce 429 responses.
+const MIN_QUOTA_REFRESH_SECS: u64 = 300;
+
+fn effective_quota_refresh_secs(raw: Option<u64>) -> u64 {
+    raw.unwrap_or(DEFAULT_QUOTA_REFRESH_SECS)
+        .max(MIN_QUOTA_REFRESH_SECS)
+}
+
 /// User-facing configuration file format (~/.config/claude-code-monitor/config.toml)
 
 #[derive(Debug, Clone, Deserialize, Default, PartialEq)]
@@ -19,7 +29,7 @@ pub enum ThemePreset {
 pub struct ConfigFile {
     /// UI refresh rate in milliseconds (default: 250)
     pub refresh_rate_ms: Option<u64>,
-    /// Quota polling interval in seconds (default: 300)
+    /// Quota polling interval in seconds (default: 300, minimum enforced: 300 — OAuth usage API)
     pub quota_refresh_secs: Option<u64>,
     /// Stats/history polling interval in seconds (default: 10)
     pub data_refresh_secs: Option<u64>,
@@ -65,7 +75,9 @@ impl Config {
             claude_dir,
             theme: config_file.theme.unwrap_or_default(),
             refresh_rate: Duration::from_millis(config_file.refresh_rate_ms.unwrap_or(250)),
-            quota_refresh_rate: Duration::from_secs(config_file.quota_refresh_secs.unwrap_or(300)),
+            quota_refresh_rate: Duration::from_secs(effective_quota_refresh_secs(
+                config_file.quota_refresh_secs,
+            )),
             data_refresh_rate: Duration::from_secs(config_file.data_refresh_secs.unwrap_or(10)),
         })
     }
@@ -111,8 +123,20 @@ mod tests {
     fn test_config_defaults() {
         let config = Config::new().unwrap();
         assert_eq!(config.refresh_rate, Duration::from_millis(250));
-        assert_eq!(config.quota_refresh_rate, Duration::from_secs(300));
+        assert!(
+            config.quota_refresh_rate >= Duration::from_secs(MIN_QUOTA_REFRESH_SECS),
+            "quota_refresh_rate must respect minimum (file or default)"
+        );
         assert_eq!(config.data_refresh_rate, Duration::from_secs(10));
+    }
+
+    #[test]
+    fn test_quota_refresh_clamped_to_minimum() {
+        assert_eq!(effective_quota_refresh_secs(None), 300);
+        assert_eq!(effective_quota_refresh_secs(Some(5)), 300);
+        assert_eq!(effective_quota_refresh_secs(Some(299)), 300);
+        assert_eq!(effective_quota_refresh_secs(Some(300)), 300);
+        assert_eq!(effective_quota_refresh_secs(Some(600)), 600);
     }
 
     #[test]

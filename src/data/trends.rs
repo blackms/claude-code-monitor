@@ -257,7 +257,12 @@ pub fn render_sparkline(data: &[u64]) -> String {
     data.iter()
         .map(|&value| {
             let idx = if max > 0 {
-                ((value as f64 / max as f64) * 7.0).round() as usize
+                let mut i = ((value as f64 / max as f64) * 7.0).round() as usize;
+                // ▁ is nearly invisible; non-zero days should show at least ▂.
+                if value > 0 {
+                    i = i.max(1);
+                }
+                i
             } else {
                 0
             };

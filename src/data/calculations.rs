@@ -227,8 +227,10 @@ pub fn calculate_total_cost(stats: &StatsCache) -> f64 {
 
         total += (usage.input_tokens as f64 / 1_000_000.0) * pricing.input;
         total += (usage.output_tokens as f64 / 1_000_000.0) * pricing.output;
-        total += (usage.cache_read_input_tokens as f64 / 1_000_000.0) * pricing.cache_read;
-        total += (usage.cache_creation_input_tokens as f64 / 1_000_000.0) * pricing.cache_create;
+        
+        // Worst-case calculation: Treat all cache operations as normal input tokens
+        total += (usage.cache_read_input_tokens as f64 / 1_000_000.0) * pricing.input;
+        total += (usage.cache_creation_input_tokens as f64 / 1_000_000.0) * pricing.input;
     }
 
     total

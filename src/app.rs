@@ -230,6 +230,19 @@ impl App {
         }
     }
 
+    /// Quota refresh for manual `r` (bypasses spacing debounce; 429 still backs off via API).
+    pub fn load_quota_force(&mut self) {
+        match data::fetch_quota_force() {
+            Ok(quota) => self.process_quota(quota),
+            Err(e) => {
+                let err_msg = e.to_string();
+                if err_msg != "DEBOUNCED" {
+                    self.quota.last_error = Some(err_msg);
+                }
+            }
+        }
+    }
+
     /// Handle async quota result from background thread
     pub fn apply_quota_result(&mut self, result: Result<data::QuotaInfo, String>) {
         match result {
